@@ -1,0 +1,12 @@
+{
+  "name": "@flagbridge/create-plugin",
+  "version": "0.1.0",
+  "description": "Scaffold a new FlagBridge plugin",
+  "bin": { "create-flagbridge-plugin": "dist/index.js" },
+  "files": ["dist", "templates"],
+  "scripts": { "build": "tsc", "dev": "tsc --watch" },
+  "author": "FlagBridge",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "https://github.com/flagbridge/flagbridge", "directory": "packages/create-plugin" },
+  "devDependencies": { "typescript": "^5.8.3" }
+}

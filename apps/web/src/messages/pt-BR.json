@@ -1,0 +1,12 @@
+{
+  "common": {
+    "appName": "FlagBridge",
+    "tagline": "Feature flags com inteligencia de produto"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "flags": "Flags",
+    "settings": "Configuracoes",
+    "audit": "Log de Auditoria"
+  }
+}

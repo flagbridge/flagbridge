@@ -1,0 +1,10 @@
+{
+  "name": "flagbridge",
+  "private": true,
+  "scripts": {
+    "dev:web": "pnpm --filter @flagbridge/web dev",
+    "build:web": "pnpm --filter @flagbridge/web build",
+    "build:packages": "pnpm --filter './packages/*' build",
+    "lint": "pnpm -r lint"
+  }
+}

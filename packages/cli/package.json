@@ -1,0 +1,12 @@
+{
+  "name": "@flagbridge/cli",
+  "version": "0.1.0",
+  "description": "FlagBridge CLI",
+  "bin": { "flagbridge": "dist/index.js" },
+  "files": ["dist"],
+  "scripts": { "build": "tsc", "dev": "tsc --watch" },
+  "author": "FlagBridge",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "https://github.com/flagbridge/flagbridge", "directory": "packages/cli" },
+  "devDependencies": { "typescript": "^5.8.3" }
+}
