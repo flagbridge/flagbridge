@@ -1,12 +1,82 @@
 {
-  "common": {
-    "appName": "FlagBridge",
-    "tagline": "Feature flags with product intelligence"
-  },
   "nav": {
-    "dashboard": "Dashboard",
-    "flags": "Flags",
-    "settings": "Settings",
-    "audit": "Audit Log"
+    "features": "Features",
+    "compare": "Compare",
+    "pricing": "Pricing",
+    "github": "GitHub",
+    "getStarted": "Get Started"
+  },
+  "hero": {
+    "badge": "Open Source \u00b7 Apache 2.0",
+    "titlePart1": "Feature flags with ",
+    "titleHighlight": "product intelligence",
+    "description": "FlagBridge goes beyond simple toggles. Connect feature flags to product strategy, track impact metrics, automate lifecycle cleanup, and extend everything with plugins.",
+    "cta": "View on GitHub",
+    "learnMore": "Learn More",
+    "terminalComment": "# API at :8080 \u00b7 Admin UI at :3000"
+  },
+  "features": {
+    "title": "Everything you need to ship with confidence",
+    "subtitle": "From simple boolean toggles to advanced product intelligence \u2014 all open source.",
+    "flagManagement": "Flag Management",
+    "flagManagementDesc": "Create boolean, string, number, and JSON flags. Target by user ID, percentage rollout, or custom attributes. Instant kill switch.",
+    "productContext": "Product Context Cards",
+    "productContextDesc": "Link every flag to a hypothesis, owner, success metrics, and deadline. No more zombie flags without business context.",
+    "techDashboard": "Technical Dashboard",
+    "techDashboardDesc": "Adoption rate, error rate by variant, latency impact, stale flag detection, and SDK version tracking. All in real-time.",
+    "lifecycle": "Lifecycle Automation",
+    "lifecycleDesc": "Configurable rules: \"if flag is 100% ON for X days, notify owner.\" Auto-archive expired flags. Technical debt score per project.",
+    "plugins": "Plugin Ecosystem",
+    "pluginsDesc": "Build, publish, and install plugins. Extend the UI, add API middleware, create custom integrations. Plugin marketplace included.",
+    "openfeature": "OpenFeature Compatible",
+    "openfeatureDesc": "Official provider for the CNCF OpenFeature standard. Zero vendor lock-in. Switch providers without changing application code."
+  },
+  "comparison": {
+    "title": "How FlagBridge compares",
+    "subtitle": "The only platform combining feature flags, product intelligence, and a plugin ecosystem.",
+    "feature": "Feature",
+    "openSourceCore": "Open Source Core",
+    "selfHosted": "Self-hosted",
+    "productContextCards": "Product Context Cards",
+    "pluginEcosystem": "Plugin Ecosystem",
+    "lifecycleAutomation": "Lifecycle Automation",
+    "openfeatureProvider": "OpenFeature Provider",
+    "messagingIntegrations": "Messaging Integrations",
+    "eventAnalyticsBridge": "Event Analytics Bridge",
+    "startingPrice": "Starting Price",
+    "free": "Free"
+  },
+  "openCore": {
+    "title": "Open core. Your data, your rules.",
+    "subtitle": "The Community Edition is genuinely useful on its own \u2014 not a crippled version that forces upgrades.",
+    "community": "Community",
+    "communitySubtitle": "Open Source",
+    "communityPrice": "Free",
+    "communityLicense": "Apache 2.0",
+    "communityFeatures": ["Unlimited flags & environments", "Unlimited projects", "Targeting rules & kill switch", "All SDKs + OpenFeature", "Basic product context", "Plugin runtime", "Webhooks + Slack plugin", "Full REST API + Admin UI"],
+    "pro": "Pro",
+    "proSubtitle": "Self-hosted plugin",
+    "proPrice": "Soon",
+    "proIncludes": "Everything in Community, plus",
+    "proFeatures": ["Advanced product context cards", "Technical dashboard & analytics", "Lifecycle & cleanup automation", "A/B testing (statistical significance)", "Scheduled flag rollouts", "Messaging integrations", "Event analytics bridge", "Technical queue connectors"],
+    "enterprise": "Enterprise",
+    "enterpriseSubtitle": "Managed SaaS",
+    "enterprisePrice": "Custom",
+    "enterpriseIncludes": "Everything in Pro, plus",
+    "enterpriseFeatures": ["SSO / SAML", "Custom approval workflows", "Audit log export", "Dedicated infrastructure", "SLA & priority support", "Custom integrations"]
+  },
+  "techStack": {
+    "title": "Built with a modern stack",
+    "subtitle": "Designed for performance, reliability, and developer experience."
+  },
+  "cta": {
+    "title": "Ready to ship with confidence?",
+    "subtitle": "Start with the open-source Community Edition. Self-host in minutes with Docker.",
+    "star": "Star on GitHub",
+    "contribute": "Contribute"
+  },
+  "footer": {
+    "community": "Community",
+    "license": "License"
   }
 }

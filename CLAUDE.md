@@ -22,7 +22,7 @@ Feature flags with product intelligence. Open source.
 - Framework: Next.js 15 (App Router)
 - Styling: Tailwind CSS v4 with design tokens from DESIGN.md
 - Components: Radix UI primitives
-- i18n: next-intl (en, pt-BR)
+- i18n: next-intl (en, pt)
 - State: Zustand (client), TanStack Query (server)
 - Package manager: pnpm
 
@@ -37,7 +37,7 @@ Feature flags with product intelligence. Open source.
 - Go: standard project layout, internal/ for private packages, pkg/ for shared
 - TypeScript: strict mode, ESM-first
 - CSS: follow DESIGN.md design system tokens — no arbitrary colors or spacing
-- i18n: all user-facing strings go through next-intl, keys in en.json and pt-BR.json
+- i18n: all user-facing strings go through next-intl, keys in en.json and pt.json
 - API: RESTful, JSON responses, proper HTTP status codes
 - Database: all schema changes via numbered migrations in apps/api/migrations/
 

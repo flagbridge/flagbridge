@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "features": "Recursos",
+    "compare": "Comparar",
+    "pricing": "Planos",
+    "github": "GitHub",
+    "getStarted": "Comece Agora"
+  },
+  "hero": {
+    "badge": "Open Source \u00b7 Apache 2.0",
+    "titlePart1": "Feature flags com ",
+    "titleHighlight": "inteligencia de produto",
+    "description": "FlagBridge vai alem de simples toggles. Conecte feature flags a estrategia de produto, acompanhe metricas de impacto, automatize o ciclo de vida e estenda tudo com plugins.",
+    "cta": "Ver no GitHub",
+    "learnMore": "Saiba Mais",
+    "terminalComment": "# API em :8080 \u00b7 Admin UI em :3000"
+  },
+  "features": {
+    "title": "Tudo que voce precisa para entregar com confianca",
+    "subtitle": "De toggles booleanos simples a inteligencia de produto avancada \u2014 tudo open source.",
+    "flagManagement": "Gerenciamento de Flags",
+    "flagManagementDesc": "Crie flags booleanas, string, numero e JSON. Segmente por ID de usuario, rollout percentual ou atributos customizados. Kill switch instantaneo.",
+    "productContext": "Cartoes de Contexto de Produto",
+    "productContextDesc": "Vincule cada flag a uma hipotese, responsavel, metricas de sucesso e prazo. Sem mais flags zumbis sem contexto de negocio.",
+    "techDashboard": "Dashboard Tecnico",
+    "techDashboardDesc": "Taxa de adocao, taxa de erro por variante, impacto de latencia, deteccao de flags obsoletas e rastreamento de versao de SDK. Tudo em tempo real.",
+    "lifecycle": "Automacao de Ciclo de Vida",
+    "lifecycleDesc": "Regras configuraveis: \"se a flag esta 100% ON por X dias, notificar responsavel.\" Auto-arquivamento de flags expiradas. Score de divida tecnica por projeto.",
+    "plugins": "Ecossistema de Plugins",
+    "pluginsDesc": "Construa, publique e instale plugins. Estenda a UI, adicione middleware de API, crie integracoes customizadas. Marketplace de plugins incluso.",
+    "openfeature": "Compativel com OpenFeature",
+    "openfeatureDesc": "Provider oficial para o padrao CNCF OpenFeature. Zero vendor lock-in. Troque de provider sem alterar o codigo da aplicacao."
+  },
+  "comparison": {
+    "title": "Como o FlagBridge se compara",
+    "subtitle": "A unica plataforma que combina feature flags, inteligencia de produto e ecossistema de plugins.",
+    "feature": "Recurso",
+    "openSourceCore": "Core Open Source",
+    "selfHosted": "Self-hosted",
+    "productContextCards": "Cartoes de Contexto de Produto",
+    "pluginEcosystem": "Ecossistema de Plugins",
+    "lifecycleAutomation": "Automacao de Ciclo de Vida",
+    "openfeatureProvider": "Provider OpenFeature",
+    "messagingIntegrations": "Integracoes de Mensageria",
+    "eventAnalyticsBridge": "Bridge de Analytics",
+    "startingPrice": "Preco Inicial",
+    "free": "Gratis"
+  },
+  "openCore": {
+    "title": "Open core. Seus dados, suas regras.",
+    "subtitle": "A Community Edition e genuinamente util por conta propria \u2014 nao uma versao limitada que forca upgrades.",
+    "community": "Community",
+    "communitySubtitle": "Open Source",
+    "communityPrice": "Gratis",
+    "communityLicense": "Apache 2.0",
+    "communityFeatures": ["Flags e ambientes ilimitados", "Projetos ilimitados", "Regras de segmentacao e kill switch", "Todos os SDKs + OpenFeature", "Contexto de produto basico", "Runtime de plugins", "Webhooks + plugin Slack", "API REST completa + Admin UI"],
+    "pro": "Pro",
+    "proSubtitle": "Plugin self-hosted",
+    "proPrice": "Em breve",
+    "proIncludes": "Tudo do Community, mais",
+    "proFeatures": ["Cartoes de contexto avancados", "Dashboard tecnico e analytics", "Automacao de lifecycle e cleanup", "Testes A/B (significancia estatistica)", "Rollouts agendados", "Integracoes de mensageria", "Bridge de analytics", "Conectores de filas tecnicas"],
+    "enterprise": "Enterprise",
+    "enterpriseSubtitle": "SaaS Gerenciado",
+    "enterprisePrice": "Sob consulta",
+    "enterpriseIncludes": "Tudo do Pro, mais",
+    "enterpriseFeatures": ["SSO / SAML", "Workflows de aprovacao", "Exportacao de audit log", "Infraestrutura dedicada", "SLA e suporte prioritario", "Integracoes customizadas"]
+  },
+  "techStack": {
+    "title": "Construido com uma stack moderna",
+    "subtitle": "Projetado para performance, confiabilidade e experiencia do desenvolvedor."
+  },
+  "cta": {
+    "title": "Pronto para entregar com confianca?",
+    "subtitle": "Comece com a Community Edition open-source. Self-host em minutos com Docker.",
+    "star": "Dar Star no GitHub",
+    "contribute": "Contribuir"
+  },
+  "footer": {
+    "community": "Comunidade",
+    "license": "Licenca"
+  }
+}

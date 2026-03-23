@@ -65,7 +65,7 @@ Apache 2.0 — see [LICENSE](LICENSE) for details.
 
 ---
 
-# FlagBridge (PT-BR)
+# FlagBridge (pt)
 
 **Feature flags com inteligencia de produto. Open source.**
 
