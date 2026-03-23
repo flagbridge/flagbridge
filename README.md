@@ -2,6 +2,9 @@
 
 **Feature flags with product intelligence. Open source.**
 
+[![Website](https://img.shields.io/badge/website-flagbridge.io-blue)](https://flagbridge.io)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+
 FlagBridge is an open-core feature flag management platform that combines powerful flag evaluation with product intelligence — helping teams not just toggle features, but understand their impact.
 
 ---
