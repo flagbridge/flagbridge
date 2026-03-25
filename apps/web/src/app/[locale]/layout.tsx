@@ -14,6 +14,10 @@ export const metadata: Metadata = {
   description:
     "Open-source feature flag management platform with product intelligence. Self-hosted, extensible, OpenFeature compatible.",
   metadataBase: new URL("https://flagbridge.io"),
+  icons: {
+    icon: "/favicon.png",
+    apple: "/apple-icon.png",
+  },
   openGraph: {
     title: "FlagBridge — Feature Flags with Product Intelligence",
     description:
