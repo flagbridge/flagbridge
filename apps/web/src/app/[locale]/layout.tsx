@@ -15,11 +15,6 @@ export const metadata: Metadata = {
   description:
     "Open-source feature flag management platform with product intelligence. Self-hosted, extensible, OpenFeature compatible.",
   metadataBase: new URL("https://flagbridge.io"),
-  icons: {
-    icon: [{ url: "/favicon.png", type: "image/png" }],
-    apple: [{ url: "/apple-icon.png", type: "image/png" }],
-  },
-  manifest: "/manifest.json",
   openGraph: {
     title: "FlagBridge — Feature Flags with Product Intelligence",
     description:
@@ -57,8 +52,8 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} className="dark">
-      <GoogleTagManager gtmId="GTM-W93TCMBF" />
       <body className={`${inter.className} antialiased`}>
+        <GoogleTagManager gtmId="GTM-W93TCMBF" />
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
