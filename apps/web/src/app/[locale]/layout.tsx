@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
@@ -76,6 +77,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
+        <Analytics />
       </body>
     </html>
   );
