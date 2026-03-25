@@ -2,8 +2,6 @@
   <img width="512" height="140" alt="textual-dark" src="https://github.com/user-attachments/assets/67852e6f-5815-482a-ad7a-a38b74eb5cd3" />
 </p>
 
-![textual-light-2](https://github.com/user-attachments/assets/96583357-5695-4a23-9700-6e1750966112)
-
 # FlagBridge
 
 **Feature flags with product intelligence. Open source.**
