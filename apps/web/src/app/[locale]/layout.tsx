@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
+import { GoogleTagManager } from "@next/third-parties/google";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
@@ -16,9 +16,10 @@ export const metadata: Metadata = {
     "Open-source feature flag management platform with product intelligence. Self-hosted, extensible, OpenFeature compatible.",
   metadataBase: new URL("https://flagbridge.io"),
   icons: {
-    icon: "/favicon.png",
-    apple: "/apple-icon.png",
+    icon: [{ url: "/favicon.png", type: "image/png" }],
+    apple: [{ url: "/apple-icon.png", type: "image/png" }],
   },
+  manifest: "/manifest.json",
   openGraph: {
     title: "FlagBridge — Feature Flags with Product Intelligence",
     description:
@@ -56,24 +57,8 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} className="dark">
-      <head>
-        <Script id="gtm" strategy="afterInteractive">
-          {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-W93TCMBF');`}
-        </Script>
-      </head>
+      <GoogleTagManager gtmId="GTM-W93TCMBF" />
       <body className={`${inter.className} antialiased`}>
-        <noscript>
-          <iframe
-            src="https://www.googletagmanager.com/ns.html?id=GTM-W93TCMBF"
-            height="0"
-            width="0"
-            style={{ display: "none", visibility: "hidden" }}
-          />
-        </noscript>
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
