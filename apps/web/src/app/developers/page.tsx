@@ -172,7 +172,7 @@ function TestingApi() {
             </div>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <CodeBlock
               language="typescript"
               code={`const session = await fb.testing.createSession({
