@@ -4,11 +4,11 @@ Feature flags with product intelligence. Open source.
 
 ## Project Structure
 
-- **Monorepo** with Go API + Next.js Admin UI + TypeScript SDK packages
+- **Monorepo** with Go API + Next.js Marketing Site
 - `apps/api/` — Go API server (chi, pgx, zerolog)
-- `apps/web/` — Next.js 15 Admin UI (App Router, Tailwind, Radix UI, next-intl, TanStack Query)
-- `packages/` — TypeScript packages (@flagbridge/sdk-node, sdk-react, plugin-sdk, openfeature-provider, cli, create-plugin)
-- `docs/` — Documentation site (Docusaurus)
+- `apps/web/` — Next.js 15 Marketing Site (App Router, Tailwind, Radix UI, next-intl, TanStack Query)
+
+> **Note:** SDKs, docs, admin UI, and other packages live in their own repos under the `flagbridge` GitHub org. See the parent directory's CLAUDE.md for the full org map.
 
 ## Tech Stack
 
