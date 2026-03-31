@@ -2,57 +2,173 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/flagbridge/flagbridge/apps/api/internal/apikey"
+	"github.com/flagbridge/flagbridge/apps/api/internal/auth"
+	"github.com/flagbridge/flagbridge/apps/api/internal/cache"
+	"github.com/flagbridge/flagbridge/apps/api/internal/config"
+	"github.com/flagbridge/flagbridge/apps/api/internal/database"
+	"github.com/flagbridge/flagbridge/apps/api/internal/environment"
+	"github.com/flagbridge/flagbridge/apps/api/internal/evaluation"
+	"github.com/flagbridge/flagbridge/apps/api/internal/flag"
+	"github.com/flagbridge/flagbridge/apps/api/internal/middleware"
+	"github.com/flagbridge/flagbridge/apps/api/internal/project"
+	"github.com/flagbridge/flagbridge/apps/api/internal/sse"
+	"github.com/flagbridge/flagbridge/apps/api/internal/targeting"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	// Structured JSON logging
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 
-	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Recoverer)
+	cfg := config.Load()
 
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status":"ok","service":"flagbridge-api"}`)
-	})
-
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"service":"flagbridge-api","version":"0.1.0"}`)
-	})
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	if cfg.DatabaseURL == "" {
+		slog.Error("DATABASE_URL is required")
+		os.Exit(1)
+	}
+	if cfg.JWTSecret == "" {
+		slog.Error("JWT_SECRET is required")
+		os.Exit(1)
 	}
 
+	ctx := context.Background()
+
+	// Database
+	db, err := database.Connect(ctx, cfg.DatabaseURL)
+	if err != nil {
+		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	// Cache
+	memCache, err := cache.NewMemoryCache()
+	if err != nil {
+		slog.Error("failed to initialize cache", "error", err)
+		os.Exit(1)
+	}
+
+	// SSE Hub
+	hub := sse.NewHub()
+
+	// Repositories
+	projectRepo := project.NewRepository(db)
+	envRepo := environment.NewRepository(db)
+	flagRepo := flag.NewRepository(db)
+	targetingRepo := targeting.NewRepository(db)
+	apikeyRepo := apikey.NewRepository(db)
+
+	// Services
+	projectSvc := project.NewService(projectRepo)
+	envSvc := environment.NewService(envRepo)
+	flagSvc := flag.NewService(flagRepo)
+	targetingSvc := targeting.NewService(targetingRepo)
+	apikeySvc := apikey.NewService(apikeyRepo)
+
+	// Handlers
+	projectHandler := project.NewHandler(projectSvc)
+	envHandler := environment.NewHandler(envSvc, projectSvc)
+	flagHandler := flag.NewHandler(flagSvc, projectSvc, envSvc, memCache, hub)
+	evalHandler := evaluation.NewHandler(db, memCache)
+	apikeyHandler := apikey.NewHandler(apikeySvc)
+
+	// Build targeting handler inline since it needs cross-package deps
+	targetingHandler := newTargetingHandler(targetingSvc, projectSvc, flagSvc, envSvc, memCache, hub)
+
+	// Router
+	r := chi.NewRouter()
+
+	// Global middleware
+	r.Use(chimw.RequestID)
+	r.Use(chimw.RealIP)
+	r.Use(middleware.Recovery)
+	r.Use(middleware.Logging)
+	r.Use(middleware.CORS(cfg.AllowedOrigins))
+
+	// All /v1 routes
+	r.Route("/v1", func(r chi.Router) {
+		// Public
+		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		})
+		r.Post("/auth/login", loginHandler(db, cfg.JWTSecret))
+
+		// Admin routes (JWT auth)
+		r.Group(func(r chi.Router) {
+			r.Use(auth.JWTMiddleware(cfg.JWTSecret))
+
+			// Projects
+			r.Post("/projects", projectHandler.Create)
+			r.Get("/projects", projectHandler.List)
+			r.Get("/projects/{slug}", projectHandler.GetBySlug)
+
+			// Environments
+			r.Post("/projects/{slug}/environments", envHandler.Create)
+			r.Get("/projects/{slug}/environments", envHandler.List)
+
+			// Flags
+			r.Post("/projects/{slug}/flags", flagHandler.Create)
+			r.Get("/projects/{slug}/flags", flagHandler.List)
+			r.Get("/projects/{slug}/flags/{key}", flagHandler.Get)
+			r.Patch("/projects/{slug}/flags/{key}", flagHandler.Update)
+			r.Delete("/projects/{slug}/flags/{key}", flagHandler.Delete)
+
+			// Flag states
+			r.Put("/projects/{slug}/flags/{key}/states/{env}", flagHandler.SetState)
+			r.Get("/projects/{slug}/flags/{key}/states/{env}", flagHandler.GetState)
+
+			// Targeting rules
+			r.Put("/projects/{slug}/flags/{key}/rules/{env}", targetingHandler.SetRules)
+			r.Get("/projects/{slug}/flags/{key}/rules/{env}", targetingHandler.GetRules)
+
+			// API keys
+			r.Post("/api-keys", apikeyHandler.Create)
+			r.Get("/api-keys", apikeyHandler.List)
+			r.Delete("/api-keys/{id}", apikeyHandler.Delete)
+		})
+
+		// SDK routes (API key auth)
+		r.Group(func(r chi.Router) {
+			r.Use(auth.APIKeyMiddleware(db, "evaluation"))
+
+			r.Post("/evaluate", evalHandler.Evaluate)
+			r.Post("/evaluate/batch", evalHandler.BatchEvaluate)
+		})
+
+		// SSE routes (API key auth)
+		r.Group(func(r chi.Router) {
+			r.Use(auth.APIKeyMiddleware(db, "evaluation"))
+			r.Get("/sse/{environment}", hub.ServeHTTP)
+		})
+	})
+
+	// Server
 	srv := &http.Server{
-		Addr:         ":" + port,
+		Addr:         ":" + cfg.Port,
 		Handler:      r,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 
 	go func() {
-		log.Info().Str("port", port).Msg("starting flagbridge api server")
+		slog.Info("starting flagbridge api server", "port", cfg.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal().Err(err).Msg("server failed")
+			slog.Error("server failed", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -60,13 +176,167 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Info().Msg("shutting down server")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	slog.Info("shutting down server")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal().Err(err).Msg("server forced to shutdown")
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		slog.Error("server forced to shutdown", "error", err)
 	}
 
-	log.Info().Msg("server stopped")
+	slog.Info("server stopped")
+}
+
+func loginHandler(db *pgxpool.Pool, jwtSecret string) http.HandlerFunc {
+	type loginRequest struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req loginRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_request", "invalid request body")
+			return
+		}
+
+		if req.Email == "" || req.Password == "" {
+			writeError(w, http.StatusBadRequest, "missing_fields", "email and password are required")
+			return
+		}
+
+		var userID, email, name, role, passwordHash string
+		err := db.QueryRow(r.Context(), `
+			SELECT id, email, name, role, password FROM users WHERE email = $1
+		`, req.Email).Scan(&userID, &email, &name, &role, &passwordHash)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "invalid_credentials", "invalid email or password")
+			return
+		}
+
+		if !auth.CheckPassword(passwordHash, req.Password) {
+			writeError(w, http.StatusUnauthorized, "invalid_credentials", "invalid email or password")
+			return
+		}
+
+		token, err := auth.GenerateToken(jwtSecret, userID, email, role)
+		if err != nil {
+			slog.Error("failed to generate token", "error", err)
+			writeError(w, http.StatusInternalServerError, "token_error", "failed to generate token")
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{
+				"token": token,
+				"user": map[string]string{
+					"id":    userID,
+					"email": email,
+					"name":  name,
+					"role":  role,
+				},
+			},
+		})
+	}
+}
+
+// targetingHandlerWrapper bridges the targeting package with project/flag/env resolution.
+type targetingHandlerWrapper struct {
+	svc        *targeting.Service
+	projectSvc *project.Service
+	flagSvc    *flag.Service
+	envSvc     *environment.Service
+	cache      cache.Provider
+	hub        *sse.Hub
+}
+
+func newTargetingHandler(svc *targeting.Service, ps *project.Service, fs *flag.Service, es *environment.Service, c cache.Provider, h *sse.Hub) *targetingHandlerWrapper {
+	return &targetingHandlerWrapper{svc: svc, projectSvc: ps, flagSvc: fs, envSvc: es, cache: c, hub: h}
+}
+
+func (h *targetingHandlerWrapper) GetRules(w http.ResponseWriter, r *http.Request) {
+	flagID, envID, _, _, err := h.resolve(w, r)
+	if err != nil {
+		return
+	}
+
+	rules, err := h.svc.GetRules(r.Context(), flagID, envID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "fetch_failed", err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]any{"data": rules})
+}
+
+func (h *targetingHandlerWrapper) SetRules(w http.ResponseWriter, r *http.Request) {
+	flagID, envID, envSlug, projectSlug, err := h.resolve(w, r)
+	if err != nil {
+		return
+	}
+
+	var req targeting.SetRulesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+
+	rules, err := h.svc.SetRules(r.Context(), flagID, envID, req.Rules)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "update_failed", err.Error())
+		return
+	}
+
+	flagKey := chi.URLParam(r, "key")
+	h.cache.Invalidate(r.Context(), "eval:"+projectSlug+":"+envSlug+":"+flagKey)
+
+	h.hub.Broadcast(envSlug, sse.Event{
+		Type: "flag.updated",
+		Data: map[string]string{
+			"flag_key":    flagKey,
+			"environment": envSlug,
+		},
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]any{"data": rules})
+}
+
+func (h *targetingHandlerWrapper) resolve(w http.ResponseWriter, r *http.Request) (flagID, envID, envSlug, projectSlug string, err error) {
+	projectSlug = chi.URLParam(r, "slug")
+	flagKey := chi.URLParam(r, "key")
+	envSlug = chi.URLParam(r, "env")
+
+	p, pErr := h.projectSvc.GetBySlug(r.Context(), projectSlug)
+	if pErr != nil {
+		writeError(w, http.StatusNotFound, "not_found", "project not found")
+		return "", "", "", "", fmt.Errorf("project not found")
+	}
+
+	f, fErr := h.flagSvc.GetByKey(r.Context(), p.ID, flagKey)
+	if fErr != nil {
+		writeError(w, http.StatusNotFound, "not_found", "flag not found")
+		return "", "", "", "", fmt.Errorf("flag not found")
+	}
+
+	e, eErr := h.envSvc.GetBySlug(r.Context(), p.ID, envSlug)
+	if eErr != nil {
+		writeError(w, http.StatusNotFound, "not_found", "environment not found")
+		return "", "", "", "", fmt.Errorf("environment not found")
+	}
+
+	return f.ID, e.ID, envSlug, projectSlug, nil
+}
+
+func writeError(w http.ResponseWriter, status int, code, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]any{
+		"error": map[string]string{"code": code, "message": message},
+	})
 }

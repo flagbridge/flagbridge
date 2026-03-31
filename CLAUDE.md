@@ -68,3 +68,5 @@ cd apps/web && pnpm dev
 - Never use opaque borders for layout separation
 - Always validate design choices against DESIGN.md tokens
 - All new API endpoints need corresponding migration if they touch the schema
+
+@CLAUDE-api.md

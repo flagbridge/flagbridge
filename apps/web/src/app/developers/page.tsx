@@ -75,7 +75,7 @@ function QuickStart() {
   const t = useTranslations("developers");
   const steps = [
     { num: "1", title: t("step1Title"), code: "docker compose up -d", desc: t("step1Desc") },
-    { num: "2", title: t("step2Title"), code: `POST /api/v1/projects/\nmy-app/flags`, desc: t("step2Desc") },
+    { num: "2", title: t("step2Title"), code: `POST /v1/projects/\nmy-app/flags`, desc: t("step2Desc") },
     { num: "3", title: t("step3Title"), code: `const enabled = \n  fb.isEnabled('flag')`, desc: t("step3Desc") },
   ];
 
@@ -200,11 +200,11 @@ function ApiWebhooks() {
   const t = useTranslations("developers");
 
   const endpoints = [
-    { label: "Evaluate", path: "GET /api/v1/evaluate/:key" },
-    { label: "Testing", path: "POST /api/v1/testing/sessions" },
-    { label: "Webhooks", path: "POST /api/v1/webhooks" },
-    { label: "Flags", path: "GET /api/v1/projects/:id/flags" },
-    { label: "Integrations", path: "GET /api/v1/integrations" },
+    { label: "Evaluate", path: "GET /v1/evaluate/:key" },
+    { label: "Testing", path: "POST /v1/testing/sessions" },
+    { label: "Webhooks", path: "POST /v1/webhooks" },
+    { label: "Flags", path: "GET /v1/projects/:id/flags" },
+    { label: "Integrations", path: "GET /v1/integrations" },
   ];
 
   return (

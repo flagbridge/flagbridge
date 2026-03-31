@@ -1,0 +1,2030 @@
+openapi: "3.1.0"
+info:
+  title: FlagBridge API
+  version: "1.0.0"
+  description: |
+    Feature flags with product intelligence. Open-core platform.
+
+    **Editions:** Community (CE) and Pro. Pro endpoints require a valid license key
+    and are gated by internal `pro.*` flags (ADR-001).
+
+    **Base URL:** `https://api.flagbridge.io`
+
+    **Authentication:**
+    - `Bearer <JWT>` — admin routes (obtained from `/v1/auth/login`)
+    - `Bearer <SDK_KEY>` — SDK/evaluation routes (`fb_sk_eval_*`)
+
+servers:
+  - url: https://api.flagbridge.io
+    description: Production
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Auth
+  - name: Projects
+  - name: Environments
+  - name: Flags
+  - name: Flag States
+  - name: Targeting Rules
+  - name: Evaluation
+  - name: Testing
+    description: Testing API — CE basic, Pro full
+  - name: Webhooks
+  - name: API Keys
+  - name: Plugins
+  - name: Marketplace
+    description: Pro only
+  - name: Product Cards
+    description: Pro only
+  - name: Metrics
+    description: Pro only
+  - name: Lifecycle
+    description: Pro only
+  - name: Integrations
+    description: Pro only
+  - name: Audit
+  - name: Health
+
+components:
+  securitySchemes:
+    BearerJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    SDKKey:
+      type: http
+      scheme: bearer
+      description: SDK API key (fb_sk_eval_* / fb_sk_mgmt_* / fb_sk_test_*)
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: not_found
+            message:
+              type: string
+              example: Flag not found
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        created_by:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Environment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        color:
+          type: string
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    Flag:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        key:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [boolean, string, number, json]
+        default_value:
+          description: JSON value for the flag default
+        tags:
+          type: array
+          items:
+            type: string
+        created_by:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    FlagState:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        flag_id:
+          type: string
+          format: uuid
+        environment_id:
+          type: string
+          format: uuid
+        enabled:
+          type: boolean
+        value:
+          description: JSON override value for this environment
+        rollout:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Percentage rollout (0 = disabled)
+        updated_by:
+          type: string
+          format: uuid
+        updated_at:
+          type: string
+          format: date-time
+
+    Condition:
+      type: object
+      required: [attribute, operator, value]
+      properties:
+        attribute:
+          type: string
+          example: country
+        operator:
+          type: string
+          enum:
+            - equals
+            - not_equals
+            - contains
+            - not_contains
+            - starts_with
+            - ends_with
+            - in
+            - not_in
+            - gt
+            - gte
+            - lt
+            - lte
+            - exists
+            - not_exists
+        value:
+          type: string
+          example: "BR"
+
+    TargetingRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        flag_id:
+          type: string
+          format: uuid
+        environment_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        priority:
+          type: integer
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Condition'
+        value:
+          description: JSON value returned when rule matches
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    EvalContext:
+      type: object
+      properties:
+        user_id:
+          type: string
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+
+    EvalResult:
+      type: object
+      properties:
+        flag_key:
+          type: string
+        value:
+          description: Resolved JSON value
+        reason:
+          type: string
+          enum:
+            - disabled
+            - session_override
+            - targeting_rule
+            - rollout
+            - default_value
+        rule_id:
+          type: string
+          description: Set when reason is targeting_rule
+
+    APIKey:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        key_prefix:
+          type: string
+        scope:
+          type: string
+          enum: [evaluation, management, testing, full]
+        project_id:
+          type: string
+          format: uuid
+        environment_id:
+          type: string
+          format: uuid
+        last_used_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    TestingSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        environment_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    TestingOverride:
+      type: object
+      properties:
+        flag_key:
+          type: string
+        value:
+          description: JSON override value
+
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+            enum:
+              - flag.created
+              - flag.updated
+              - flag.deleted
+              - flag.enabled
+              - flag.disabled
+              - rule.updated
+              - state.updated
+              - project.updated
+              - apikey.created
+        enabled:
+          type: boolean
+        secret:
+          type: string
+          description: HMAC-SHA256 signing secret (write-only)
+        created_at:
+          type: string
+          format: date-time
+
+    WebhookLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        webhook_id:
+          type: string
+          format: uuid
+        event:
+          type: string
+        status_code:
+          type: integer
+        duration_ms:
+          type: integer
+        success:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Plugin:
+      type: object
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        enabled:
+          type: boolean
+        config:
+          type: object
+
+    MarketplaceListing:
+      type: object
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        author:
+          type: string
+        version:
+          type: string
+        price:
+          type: number
+        status:
+          type: string
+          enum: [draft, pending_review, published, rejected]
+
+    ProductCard:
+      type: object
+      properties:
+        flag_key:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        owner:
+          type: string
+        status:
+          type: string
+          enum: [active, deprecated, cleanup_ready]
+        jira_ticket:
+          type: string
+        expected_cleanup_date:
+          type: string
+          format: date
+
+    Integration:
+      type: object
+      properties:
+        provider:
+          type: string
+          enum:
+            - mixpanel
+            - customer_io
+            - amplitude
+            - segment
+            - datadog
+            - slack
+        enabled:
+          type: boolean
+        config:
+          type: object
+
+    AuditLogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+          format: uuid
+        changes:
+          type: object
+        ip_address:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+paths:
+  # ============================================================
+  # HEALTH
+  # ============================================================
+  /v1/health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  # ============================================================
+  # AUTH
+  # ============================================================
+  /v1/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Login with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        "200":
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          email:
+                            type: string
+                          name:
+                            type: string
+                          role:
+                            type: string
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
+  # PROJECTS
+  # ============================================================
+  /v1/projects:
+    get:
+      tags: [Projects]
+      operationId: listProjects
+      summary: List all projects
+      security:
+        - BearerJWT: []
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Projects]
+      operationId: createProject
+      summary: Create a project
+      security:
+        - BearerJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug]
+              properties:
+                name:
+                  type: string
+                slug:
+                  type: string
+                description:
+                  type: string
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Project'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/projects/{slug}:
+    get:
+      tags: [Projects]
+      operationId: getProject
+      summary: Get a project by slug
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Project'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================
+  # ENVIRONMENTS
+  # ============================================================
+  /v1/projects/{slug}/environments:
+    get:
+      tags: [Environments]
+      operationId: listEnvironments
+      summary: List environments for a project
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      responses:
+        "200":
+          description: Environments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Environment'
+    post:
+      tags: [Environments]
+      operationId: createEnvironment
+      summary: Create an environment
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug]
+              properties:
+                name:
+                  type: string
+                slug:
+                  type: string
+                color:
+                  type: string
+                sort_order:
+                  type: integer
+      responses:
+        "201":
+          description: Created environment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Environment'
+
+  # ============================================================
+  # FLAGS
+  # ============================================================
+  /v1/projects/{slug}/flags:
+    get:
+      tags: [Flags]
+      operationId: listFlags
+      summary: List flags for a project
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - name: tags
+          in: query
+          schema:
+            type: string
+          description: Comma-separated tag filter
+      responses:
+        "200":
+          description: Flags
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Flag'
+    post:
+      tags: [Flags]
+      operationId: createFlag
+      summary: Create a flag
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key, name, type]
+              properties:
+                key:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                type:
+                  type: string
+                  enum: [boolean, string, number, json]
+                default_value: {}
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "201":
+          description: Created flag
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Flag'
+
+  /v1/projects/{slug}/flags/{key}:
+    get:
+      tags: [Flags]
+      operationId: getFlag
+      summary: Get a flag by key
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/FlagKey'
+      responses:
+        "200":
+          description: Flag
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Flag'
+        "404":
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Flags]
+      operationId: updateFlag
+      summary: Update a flag
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/FlagKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                default_value: {}
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Updated flag
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Flag'
+    delete:
+      tags: [Flags]
+      operationId: deleteFlag
+      summary: Delete a flag
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/FlagKey'
+      responses:
+        "204":
+          description: Deleted
+
+  # ============================================================
+  # FLAG STATES (per environment)
+  # ============================================================
+  /v1/projects/{slug}/flags/{key}/states/{env}:
+    get:
+      tags: [Flag States]
+      operationId: getFlagState
+      summary: Get flag state for an environment
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/FlagKey'
+        - $ref: '#/components/parameters/EnvSlug'
+      responses:
+        "200":
+          description: Flag state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FlagState'
+    put:
+      tags: [Flag States]
+      operationId: setFlagState
+      summary: Set flag state for an environment
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/FlagKey'
+        - $ref: '#/components/parameters/EnvSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled:
+                  type: boolean
+                value: {}
+                rollout:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+      responses:
+        "200":
+          description: Updated state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FlagState'
+
+  # ============================================================
+  # TARGETING RULES
+  # ============================================================
+  /v1/projects/{slug}/flags/{key}/rules/{env}:
+    get:
+      tags: [Targeting Rules]
+      operationId: getTargetingRules
+      summary: Get targeting rules for a flag in an environment
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/FlagKey'
+        - $ref: '#/components/parameters/EnvSlug'
+      responses:
+        "200":
+          description: Targeting rules
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TargetingRule'
+    put:
+      tags: [Targeting Rules]
+      operationId: setTargetingRules
+      summary: Replace targeting rules for a flag in an environment
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/FlagKey'
+        - $ref: '#/components/parameters/EnvSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rules]
+              properties:
+                rules:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, priority, conditions, value, enabled]
+                    properties:
+                      name:
+                        type: string
+                      priority:
+                        type: integer
+                      conditions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Condition'
+                      value: {}
+                      enabled:
+                        type: boolean
+      responses:
+        "200":
+          description: Updated rules
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TargetingRule'
+
+  # ============================================================
+  # EVALUATION
+  # ============================================================
+  /v1/evaluate:
+    post:
+      tags: [Evaluation]
+      operationId: evaluateFlag
+      summary: Evaluate a single flag
+      security:
+        - SDKKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [flag_key, project, environment]
+              properties:
+                flag_key:
+                  type: string
+                project:
+                  type: string
+                environment:
+                  type: string
+                context:
+                  $ref: '#/components/schemas/EvalContext'
+      responses:
+        "200":
+          description: Evaluation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/EvalResult'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /v1/evaluate/batch:
+    post:
+      tags: [Evaluation]
+      operationId: batchEvaluate
+      summary: Evaluate multiple flags in one request
+      security:
+        - SDKKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project, environment, flag_keys]
+              properties:
+                project:
+                  type: string
+                environment:
+                  type: string
+                flag_keys:
+                  type: array
+                  items:
+                    type: string
+                context:
+                  $ref: '#/components/schemas/EvalContext'
+      responses:
+        "200":
+          description: Map of flag_key to evaluation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      flags:
+                        type: object
+                        additionalProperties:
+                          $ref: '#/components/schemas/EvalResult'
+
+  # ============================================================
+  # SSE
+  # ============================================================
+  /v1/sse/{environment}:
+    get:
+      tags: [Evaluation]
+      operationId: sseStream
+      summary: Server-Sent Events stream for real-time flag updates
+      security:
+        - SDKKey: []
+      parameters:
+        - name: environment
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  # ============================================================
+  # TESTING API (CE basic / Pro full)
+  # ============================================================
+  /v1/testing/sessions:
+    post:
+      tags: [Testing]
+      operationId: createTestingSession
+      summary: Create a testing session
+      security:
+        - SDKKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project, environment]
+              properties:
+                project:
+                  type: string
+                environment:
+                  type: string
+                name:
+                  type: string
+      responses:
+        "201":
+          description: Created session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TestingSession'
+    get:
+      tags: [Testing]
+      operationId: listTestingSessions
+      summary: List testing sessions (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      responses:
+        "200":
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TestingSession'
+
+  /v1/testing/sessions/{id}:
+    delete:
+      tags: [Testing]
+      operationId: deleteTestingSession
+      summary: Delete a testing session
+      security:
+        - SDKKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionID'
+      responses:
+        "204":
+          description: Deleted
+
+  /v1/testing/sessions/{id}/overrides:
+    get:
+      tags: [Testing]
+      operationId: getTestingOverrides
+      summary: Get all overrides in a testing session
+      security:
+        - SDKKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionID'
+      responses:
+        "200":
+          description: Overrides
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TestingOverride'
+    put:
+      tags: [Testing]
+      operationId: setTestingOverrides
+      summary: Set (replace all) overrides for a testing session
+      security:
+        - SDKKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [overrides]
+              properties:
+                overrides:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TestingOverride'
+      responses:
+        "200":
+          description: Updated overrides
+
+  /v1/testing/sessions/{id}/overrides/{flag}:
+    delete:
+      tags: [Testing]
+      operationId: deleteTestingOverride
+      summary: Remove a single flag override from a testing session
+      security:
+        - SDKKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionID'
+        - name: flag
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Flag key
+      responses:
+        "204":
+          description: Deleted
+
+  /v1/testing/sessions/{id}/metrics:
+    get:
+      tags: [Testing]
+      operationId: getTestingSessionMetrics
+      summary: Get metrics for a testing session (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/SessionID'
+      responses:
+        "200":
+          description: Session metrics
+
+  /v1/testing/sessions/{id}/snapshot:
+    post:
+      tags: [Testing]
+      operationId: snapshotTestingSession
+      summary: Snapshot the current flag states into a testing session (Pro)
+      security:
+        - SDKKey: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/SessionID'
+      responses:
+        "200":
+          description: Snapshot created
+
+  /v1/testing/sessions/{id}/restore:
+    post:
+      tags: [Testing]
+      operationId: restoreTestingSession
+      summary: Restore flag states from a session snapshot (Pro)
+      security:
+        - SDKKey: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/SessionID'
+      responses:
+        "200":
+          description: Restored
+
+  # ============================================================
+  # WEBHOOKS
+  # ============================================================
+  /v1/projects/{slug}/webhooks:
+    get:
+      tags: [Webhooks]
+      operationId: listWebhooks
+      summary: List webhooks for a project
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      responses:
+        "200":
+          description: Webhooks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Webhook'
+    post:
+      tags: [Webhooks]
+      operationId: createWebhook
+      summary: Create a webhook
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, events]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                events:
+                  type: array
+                  items:
+                    type: string
+                secret:
+                  type: string
+      responses:
+        "201":
+          description: Created webhook
+
+  /v1/projects/{slug}/webhooks/{webhook_id}:
+    patch:
+      tags: [Webhooks]
+      operationId: updateWebhook
+      summary: Update a webhook
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/WebhookID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                events:
+                  type: array
+                  items:
+                    type: string
+                enabled:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated webhook
+    delete:
+      tags: [Webhooks]
+      operationId: deleteWebhook
+      summary: Delete a webhook
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/WebhookID'
+      responses:
+        "204":
+          description: Deleted
+
+  /v1/projects/{slug}/webhooks/{webhook_id}/logs:
+    get:
+      tags: [Webhooks]
+      operationId: getWebhookLogs
+      summary: Get delivery logs for a webhook
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/WebhookID'
+      responses:
+        "200":
+          description: Webhook logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookLog'
+
+  /v1/projects/{slug}/webhooks/{webhook_id}/test:
+    post:
+      tags: [Webhooks]
+      operationId: testWebhook
+      summary: Send a test delivery to a webhook
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/WebhookID'
+      responses:
+        "200":
+          description: Test delivery sent
+
+  # ============================================================
+  # API KEYS
+  # ============================================================
+  /v1/api-keys:
+    get:
+      tags: [API Keys]
+      operationId: listAPIKeys
+      summary: List API keys
+      security:
+        - BearerJWT: []
+      responses:
+        "200":
+          description: API keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/APIKey'
+    post:
+      tags: [API Keys]
+      operationId: createAPIKey
+      summary: Create an API key
+      security:
+        - BearerJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, scope, project_id]
+              properties:
+                name:
+                  type: string
+                scope:
+                  type: string
+                  enum: [evaluation, management, testing, full]
+                project_id:
+                  type: string
+                  format: uuid
+                environment_id:
+                  type: string
+                  format: uuid
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        "201":
+          description: Created API key (raw key only shown once)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/APIKey'
+                      - type: object
+                        properties:
+                          key:
+                            type: string
+                            description: Raw key value — store securely, not retrievable again
+
+  /v1/api-keys/{id}:
+    delete:
+      tags: [API Keys]
+      operationId: deleteAPIKey
+      summary: Delete an API key
+      security:
+        - BearerJWT: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+
+  # ============================================================
+  # PLUGINS
+  # ============================================================
+  /v1/plugins:
+    get:
+      tags: [Plugins]
+      operationId: listPlugins
+      summary: List installed plugins
+      security:
+        - BearerJWT: []
+      responses:
+        "200":
+          description: Plugins
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plugin'
+    post:
+      tags: [Plugins]
+      operationId: installPlugin
+      summary: Install a plugin
+      security:
+        - BearerJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slug]
+              properties:
+                slug:
+                  type: string
+                config:
+                  type: object
+      responses:
+        "201":
+          description: Plugin installed
+
+  /v1/plugins/{slug}:
+    delete:
+      tags: [Plugins]
+      operationId: uninstallPlugin
+      summary: Uninstall a plugin
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/PluginSlug'
+      responses:
+        "204":
+          description: Uninstalled
+    patch:
+      tags: [Plugins]
+      operationId: updatePluginConfig
+      summary: Update plugin configuration
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/PluginSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [config]
+              properties:
+                config:
+                  type: object
+      responses:
+        "200":
+          description: Updated
+
+  /v1/plugins/{slug}/status:
+    get:
+      tags: [Plugins]
+      operationId: getPluginStatus
+      summary: Get plugin runtime status
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/PluginSlug'
+      responses:
+        "200":
+          description: Plugin status
+
+  # ============================================================
+  # PRODUCT CARDS (Pro)
+  # ============================================================
+  /v1/projects/{slug}/flags/{key}/product-card:
+    get:
+      tags: [Product Cards]
+      operationId: getProductCard
+      summary: Get product card for a flag (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/FlagKey'
+      responses:
+        "200":
+          description: Product card
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProductCard'
+    put:
+      tags: [Product Cards]
+      operationId: upsertProductCard
+      summary: Create or update product card for a flag (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/FlagKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCard'
+      responses:
+        "200":
+          description: Updated product card
+
+  # ============================================================
+  # METRICS & DASHBOARD (Pro)
+  # ============================================================
+  /v1/projects/{slug}/flags/{key}/metrics:
+    get:
+      tags: [Metrics]
+      operationId: getFlagMetrics
+      summary: Get evaluation metrics for a flag (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/FlagKey'
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Metrics
+
+  /v1/projects/{slug}/dashboard/overview:
+    get:
+      tags: [Metrics]
+      operationId: getDashboardOverview
+      summary: Get dashboard overview for a project (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      responses:
+        "200":
+          description: Dashboard overview
+
+  # ============================================================
+  # LIFECYCLE (Pro)
+  # ============================================================
+  /v1/projects/{slug}/lifecycle/stale:
+    get:
+      tags: [Lifecycle]
+      operationId: getStaleFlags
+      summary: List stale flags (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      responses:
+        "200":
+          description: Stale flags
+
+  /v1/projects/{slug}/lifecycle/cleanup-suggestions:
+    get:
+      tags: [Lifecycle]
+      operationId: getCleanupSuggestions
+      summary: Get cleanup suggestions for flags (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      responses:
+        "200":
+          description: Cleanup suggestions
+
+  # ============================================================
+  # MARKETPLACE (Pro)
+  # ============================================================
+  /v1/marketplace/listings:
+    get:
+      tags: [Marketplace]
+      operationId: listMarketplaceListings
+      summary: Browse marketplace plugin listings (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      responses:
+        "200":
+          description: Listings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MarketplaceListing'
+    post:
+      tags: [Marketplace]
+      operationId: createMarketplaceListing
+      summary: Publish a plugin listing (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketplaceListing'
+      responses:
+        "201":
+          description: Created listing
+
+  /v1/marketplace/listings/{slug}:
+    get:
+      tags: [Marketplace]
+      operationId: getMarketplaceListing
+      summary: Get a marketplace listing (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/MarketplaceSlug'
+      responses:
+        "200":
+          description: Listing
+    patch:
+      tags: [Marketplace]
+      operationId: updateMarketplaceListing
+      summary: Update a marketplace listing (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/MarketplaceSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketplaceListing'
+      responses:
+        "200":
+          description: Updated
+
+  /v1/marketplace/listings/{slug}/review:
+    post:
+      tags: [Marketplace]
+      operationId: reviewMarketplaceListing
+      summary: Submit a review decision for a listing (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/MarketplaceSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [approve, reject]
+                note:
+                  type: string
+      responses:
+        "200":
+          description: Review submitted
+
+  /v1/marketplace/developer/earnings:
+    get:
+      tags: [Marketplace]
+      operationId: getDeveloperEarnings
+      summary: Get developer earnings from marketplace (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      responses:
+        "200":
+          description: Earnings summary
+
+  /v1/marketplace/purchase/{slug}:
+    post:
+      tags: [Marketplace]
+      operationId: purchasePlugin
+      summary: Purchase a marketplace plugin (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/MarketplaceSlug'
+      responses:
+        "200":
+          description: Purchase initiated
+
+  # ============================================================
+  # INTEGRATIONS (Pro)
+  # ============================================================
+  /v1/projects/{slug}/integrations:
+    get:
+      tags: [Integrations]
+      operationId: listIntegrations
+      summary: List integrations for a project (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      responses:
+        "200":
+          description: Integrations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Integration'
+    post:
+      tags: [Integrations]
+      operationId: createIntegration
+      summary: Connect an integration (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Integration'
+      responses:
+        "201":
+          description: Created integration
+
+  /v1/projects/{slug}/integrations/{provider}:
+    patch:
+      tags: [Integrations]
+      operationId: updateIntegration
+      summary: Update integration configuration (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/IntegrationProvider'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                config:
+                  type: object
+                enabled:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated
+    delete:
+      tags: [Integrations]
+      operationId: deleteIntegration
+      summary: Remove an integration (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/IntegrationProvider'
+      responses:
+        "204":
+          description: Removed
+
+  /v1/projects/{slug}/integrations/{provider}/status:
+    get:
+      tags: [Integrations]
+      operationId: getIntegrationStatus
+      summary: Get integration connection status (Pro)
+      security:
+        - BearerJWT: []
+      x-flagbridge-edition: pro
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/IntegrationProvider'
+      responses:
+        "200":
+          description: Status
+
+  # ============================================================
+  # AUDIT LOG
+  # ============================================================
+  /v1/audit-log:
+    get:
+      tags: [Audit]
+      operationId: getAuditLog
+      summary: Get audit log entries
+      security:
+        - BearerJWT: []
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: entity_type
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLogEntry'
+
+  parameters: {}
+
+components:
+  parameters:
+    ProjectSlug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Project slug
+
+    FlagKey:
+      name: key
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flag key
+
+    EnvSlug:
+      name: env
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Environment slug
+
+    SessionID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Testing session ID
+
+    WebhookID:
+      name: webhook_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Webhook ID
+
+    PluginSlug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Plugin slug
+
+    MarketplaceSlug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Marketplace listing slug
+
+    IntegrationProvider:
+      name: provider
+      in: path
+      required: true
+      schema:
+        type: string
+        enum:
+          - mixpanel
+          - customer_io
+          - amplitude
+          - segment
+          - datadog
+          - slack
+      description: Integration provider name
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
