@@ -9,6 +9,7 @@ out/
 
 # Go
 apps/api/flagbridge-api
+apps/api/server
 
 # Environment
 .env
