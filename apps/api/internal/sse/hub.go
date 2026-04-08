@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type Event struct {
@@ -52,7 +54,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	environment := r.PathValue("environment")
+	environment := chi.URLParam(r, "environment")
 	if environment == "" {
 		http.Error(w, "environment required", http.StatusBadRequest)
 		return

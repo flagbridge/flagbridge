@@ -25,7 +25,12 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID string) 
 
 	scope := req.Scope
 	if scope == "" {
-		scope = "evaluation"
+		scope = "eval"
+	}
+
+	validScopes := map[string]bool{"eval": true, "test": true, "mgmt": true, "full": true}
+	if !validScopes[scope] {
+		return nil, fmt.Errorf("invalid scope %q: must be one of eval, test, mgmt, full", scope)
 	}
 
 	fullKey, hash, prefix, err := auth.GenerateAPIKey(scope)

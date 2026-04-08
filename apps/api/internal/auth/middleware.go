@@ -67,7 +67,7 @@ func APIKeyMiddleware(db *pgxpool.Pool, requiredScope string) func(http.Handler)
 				return
 			}
 
-			if requiredScope != "" && info.Scope != requiredScope && info.Scope != "admin" {
+			if requiredScope != "" && info.Scope != requiredScope && info.Scope != "full" {
 				unauthorizedJSON(w, "insufficient API key scope")
 				return
 			}
