@@ -1,72 +1,55 @@
-# FlagBridge
+# CLAUDE.md — FlagBridge API (Go)
 
-Feature flags with product intelligence. Open source.
+> Copiar pra: flagbridge/flagbridge/CLAUDE.md
 
-## Project Structure
+## O que é
 
-- **Monorepo** with Go API + Next.js Marketing Site
-- `apps/api/` — Go API server (chi, pgx, zerolog)
-- `apps/web/` — Next.js 15 Marketing Site (App Router, Tailwind, Radix UI, next-intl, TanStack Query)
+FlagBridge — open-core feature flag management com product intelligence.
+Este repo é a API Go central.
 
-> **Note:** SDKs, docs, admin UI, and other packages live in their own repos under the `flagbridge` GitHub org. See the parent directory's CLAUDE.md for the full org map.
+## Stack
 
-## Tech Stack
+Go 1.22+, Chi router, pgx (PostgreSQL via Supabase), sqlc, goose, slog.
+Cache: in-memory (CacheProvider interface). Auth: Supabase Auth SaaS / bcrypt+JWT self-hosted (AuthProvider interface).
+Deploy: Fly.io (region gru). CI: GitHub Actions.
 
-### API (Go)
-- Router: chi
-- Database: PostgreSQL via pgx
-- Logging: zerolog
-- Migrations: golang-migrate
+## Estrutura
 
-### Web (TypeScript)
-- Framework: Next.js 15 (App Router)
-- Styling: Tailwind CSS v4 with design tokens from DESIGN.md
-- Components: Radix UI primitives
-- i18n: next-intl (en, pt)
-- State: Zustand (client), TanStack Query (server)
-- Package manager: pnpm
-
-### SDKs
-- TypeScript packages use TypeScript project references
-- Published under @flagbridge scope on npm
-
-## Conventions
-
-- Language: code and technical terms in English, comments can be bilingual
-- Commits: Conventional Commits (feat:, fix:, chore:, docs:, etc.)
-- Go: standard project layout, internal/ for private packages, pkg/ for shared
-- TypeScript: strict mode, ESM-first
-- CSS: follow DESIGN.md design system tokens — no arbitrary colors or spacing
-- i18n: all user-facing strings go through next-intl, keys in en.json and pt.json
-- API: RESTful, JSON responses, proper HTTP status codes
-- Database: all schema changes via numbered migrations in apps/api/migrations/
-
-## Design System
-
-See DESIGN.md for the complete design system specification. Key rules:
-- Dark theme, Electric Blue (#3B82F6) primary
-- No visible borders for section separation — use tonal surface transitions
-- Inter font for everything
-- Developer-first, left-aligned, generous whitespace
-
-## Development
-
-```bash
-# Start local environment
-docker compose up -d
-
-# API
-cd apps/api && go run ./cmd/server
-
-# Web
-cd apps/web && pnpm dev
+```
+internal/
+├── flag/        # CRUD + evaluation engine
+├── testing/     # Sessions, overrides, cleanup
+├── webhook/     # Registration, delivery, retry
+├── project/     # Project domain
+├── auth/        # AuthProvider interface
+├── plugin/      # Plugin runtime
+├── integration/ # Managed integrations (Pro)
+└── api/         # HTTP handlers (Chi)
+pkg/
+├── database/    # pgx client
+├── config/      # Env config
+├── cache/       # CacheProvider interface
+└── middleware/   # HTTP middleware
+migrations/      # goose SQL
 ```
 
-## Important
+## API — 72 endpoints (40 CE + 32 Pro)
 
-- Never use #000000 — darkest color is surface_container_lowest (#060e20)
-- Never use opaque borders for layout separation
-- Always validate design choices against DESIGN.md tokens
-- All new API endpoints need corresponding migration if they touch the schema
+Keys: fb_sk_{eval|test|mgmt|full}_...
+Resolution: session override > targeting > rollout (MurmurHash3) > env default > flag default.
+Pro gating: ADR-001 dogfooding via _flagbridge internal project.
 
-@CLAUDE-api.md
+## Convenções
+
+- snake_case DB, camelCase JSON, PascalCase Go
+- Table-driven tests com testify
+- Errors: `fmt.Errorf("context: %w", err)`
+- Structured logging via slog
+
+## NÃO faça
+
+- Não mude Pro gating (ADR-001) sem aprovação
+- Não modifique migrations aplicadas — crie novas
+- Não adicione Redis — use CacheProvider in-memory
+- Não exponha _flagbridge no público
+- Não adicione deps Go sem justificativa
