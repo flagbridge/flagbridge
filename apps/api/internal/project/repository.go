@@ -35,6 +35,33 @@ func (r *Repository) GetBySlug(ctx context.Context, slug string) (*Project, erro
 	return &p, nil
 }
 
+func (r *Repository) Update(ctx context.Context, slug string, req UpdateRequest) (*Project, error) {
+	var p Project
+	err := r.db.QueryRow(ctx, `
+		UPDATE projects
+		SET name = COALESCE($1, name),
+		    description = COALESCE($2, description),
+		    updated_at = now()
+		WHERE slug = $3
+		RETURNING id, name, slug, description, created_by, created_at, updated_at
+	`, req.Name, req.Description, slug).Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CreatedBy, &p.CreatedAt, &p.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("updating project: %w", err)
+	}
+	return &p, nil
+}
+
+func (r *Repository) Delete(ctx context.Context, slug string) error {
+	ct, err := r.db.Exec(ctx, `DELETE FROM projects WHERE slug = $1`, slug)
+	if err != nil {
+		return fmt.Errorf("deleting project: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return fmt.Errorf("project not found")
+	}
+	return nil
+}
+
 func (r *Repository) List(ctx context.Context) ([]Project, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, name, slug, description, created_by, created_at, updated_at

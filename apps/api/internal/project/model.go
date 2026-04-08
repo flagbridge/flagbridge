@@ -17,3 +17,8 @@ type CreateRequest struct {
 	Slug        string `json:"slug"`
 	Description string `json:"description,omitempty"`
 }
+
+type UpdateRequest struct {
+	Name        *string `json:"name,omitempty"`
+	Description *string `json:"description,omitempty"`
+}
