@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/flagbridge/flagbridge/apps/api/internal/apikey"
+	"github.com/flagbridge/flagbridge/apps/api/internal/audit"
 	"github.com/flagbridge/flagbridge/apps/api/internal/auth"
 	"github.com/flagbridge/flagbridge/apps/api/internal/cache"
 	"github.com/flagbridge/flagbridge/apps/api/internal/config"
@@ -19,6 +20,8 @@ import (
 	"github.com/flagbridge/flagbridge/apps/api/internal/environment"
 	"github.com/flagbridge/flagbridge/apps/api/internal/evaluation"
 	"github.com/flagbridge/flagbridge/apps/api/internal/flag"
+	fbtesting "github.com/flagbridge/flagbridge/apps/api/internal/testing"
+	"github.com/flagbridge/flagbridge/apps/api/internal/webhook"
 	"github.com/flagbridge/flagbridge/apps/api/internal/middleware"
 	"github.com/flagbridge/flagbridge/apps/api/internal/project"
 	"github.com/flagbridge/flagbridge/apps/api/internal/sse"
@@ -69,6 +72,9 @@ func main() {
 	flagRepo := flag.NewRepository(db)
 	targetingRepo := targeting.NewRepository(db)
 	apikeyRepo := apikey.NewRepository(db)
+	auditRepo := audit.NewRepository(db)
+	testingRepo := fbtesting.NewRepository(db)
+	webhookRepo := webhook.NewRepository(db)
 
 	// Services
 	projectSvc := project.NewService(projectRepo)
@@ -76,6 +82,10 @@ func main() {
 	flagSvc := flag.NewService(flagRepo)
 	targetingSvc := targeting.NewService(targetingRepo)
 	apikeySvc := apikey.NewService(apikeyRepo)
+	auditSvc := audit.NewService(auditRepo)
+	testingSvc := fbtesting.NewService(testingRepo)
+	webhookDispatcher := webhook.NewDispatcher(webhookRepo)
+	webhookSvc := webhook.NewService(webhookRepo, webhookDispatcher)
 
 	// Handlers
 	projectHandler := project.NewHandler(projectSvc)
@@ -83,6 +93,10 @@ func main() {
 	flagHandler := flag.NewHandler(flagSvc, projectSvc, envSvc, memCache, hub)
 	evalHandler := evaluation.NewHandler(db, memCache)
 	apikeyHandler := apikey.NewHandler(apikeySvc)
+	auditHandler := audit.NewHandler(auditSvc)
+	testingHandler := fbtesting.NewHandler(testingSvc)
+	webhookHandler := webhook.NewHandler(webhookSvc)
+
 
 	// Build targeting handler inline since it needs cross-package deps
 	targetingHandler := newTargetingHandler(targetingSvc, projectSvc, flagSvc, envSvc, memCache, hub)
@@ -114,6 +128,8 @@ func main() {
 			r.Post("/projects", projectHandler.Create)
 			r.Get("/projects", projectHandler.List)
 			r.Get("/projects/{slug}", projectHandler.GetBySlug)
+			r.Patch("/projects/{slug}", projectHandler.Update)
+			r.Delete("/projects/{slug}", projectHandler.Delete)
 
 			// Environments
 			r.Post("/projects/{slug}/environments", envHandler.Create)
@@ -138,19 +154,44 @@ func main() {
 			r.Post("/api-keys", apikeyHandler.Create)
 			r.Get("/api-keys", apikeyHandler.List)
 			r.Delete("/api-keys/{id}", apikeyHandler.Delete)
+
+			// Webhooks
+			r.Post("/projects/{slug}/webhooks", webhookHandler.Create)
+			r.Get("/projects/{slug}/webhooks", webhookHandler.List)
+			r.Get("/webhooks/{webhookID}", webhookHandler.Get)
+			r.Patch("/webhooks/{webhookID}", webhookHandler.Update)
+			r.Delete("/webhooks/{webhookID}", webhookHandler.Delete)
+			r.Get("/webhooks/{webhookID}/logs", webhookHandler.DeliveryLogs)
+			r.Post("/webhooks/{webhookID}/test", webhookHandler.Test)
+
+			// Audit log
+			r.Get("/audit-log", auditHandler.List)
 		})
 
-		// SDK routes (API key auth)
+		// SDK routes (API key auth — eval scope)
 		r.Group(func(r chi.Router) {
-			r.Use(auth.APIKeyMiddleware(db, "evaluation"))
+			r.Use(auth.APIKeyMiddleware(db, "eval"))
 
 			r.Post("/evaluate", evalHandler.Evaluate)
 			r.Post("/evaluate/batch", evalHandler.BatchEvaluate)
 		})
 
-		// SSE routes (API key auth)
+		// Testing API routes (API key auth — test scope)
 		r.Group(func(r chi.Router) {
-			r.Use(auth.APIKeyMiddleware(db, "evaluation"))
+			r.Use(auth.APIKeyMiddleware(db, "test"))
+
+			r.Post("/testing/sessions", testingHandler.CreateSession)
+			r.Get("/testing/sessions", testingHandler.ListSessions)
+			r.Get("/testing/sessions/{sessionID}", testingHandler.GetSession)
+			r.Delete("/testing/sessions/{sessionID}", testingHandler.DeleteSession)
+			r.Put("/testing/sessions/{sessionID}/overrides", testingHandler.SetOverride)
+			r.Put("/testing/sessions/{sessionID}/overrides/batch", testingHandler.SetOverridesBatch)
+			r.Delete("/testing/sessions/{sessionID}/overrides/{flagKey}", testingHandler.DeleteOverride)
+		})
+
+		// SSE routes (API key auth — eval scope)
+		r.Group(func(r chi.Router) {
+			r.Use(auth.APIKeyMiddleware(db, "eval"))
 			r.Get("/sse/{environment}", hub.ServeHTTP)
 		})
 	})

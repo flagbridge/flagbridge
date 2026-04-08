@@ -144,7 +144,7 @@ CREATE INDEX idx_audit_log_entity ON audit_log (entity_type, entity_id);
 -- ============================================================
 
 -- Admin user (password: flagbridge-admin-2026)
-INSERT INTO users (id, email, name, password_hash, role)
+INSERT INTO users (id, email, name, password, role)
 VALUES (
     '00000000-0000-0000-0000-000000000001',
     'admin@flagbridge.io',
