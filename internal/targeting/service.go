@@ -14,6 +14,10 @@ func (s *Service) GetRules(ctx context.Context, flagID, envID string) ([]Rule, e
 	return s.repo.GetByFlagAndEnv(ctx, flagID, envID)
 }
 
+func (s *Service) CountRulesByProject(ctx context.Context, projectID string) ([]RuleCount, error) {
+	return s.repo.CountRulesByProject(ctx, projectID)
+}
+
 func (s *Service) SetRules(ctx context.Context, flagID, envID string, inputs []RuleInput) ([]Rule, error) {
 	return s.repo.SetRules(ctx, flagID, envID, inputs)
 }

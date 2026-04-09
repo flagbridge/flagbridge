@@ -110,6 +110,29 @@ func (r *Repository) Delete(ctx context.Context, projectID, key string) error {
 	return nil
 }
 
+func (r *Repository) ListStatesByProject(ctx context.Context, projectID string) ([]FlagState, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT fs.id, fs.flag_id, fs.environment_id, fs.enabled, fs.value, fs.updated_by, fs.updated_at
+		FROM flag_states fs
+		JOIN flags f ON f.id = fs.flag_id
+		WHERE f.project_id = $1
+	`, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var states []FlagState
+	for rows.Next() {
+		var fs FlagState
+		if err := rows.Scan(&fs.ID, &fs.FlagID, &fs.EnvironmentID, &fs.Enabled, &fs.Value, &fs.UpdatedBy, &fs.UpdatedAt); err != nil {
+			return nil, err
+		}
+		states = append(states, fs)
+	}
+	return states, nil
+}
+
 func (r *Repository) GetState(ctx context.Context, flagID, envID string) (*FlagState, error) {
 	var fs FlagState
 	err := r.db.QueryRow(ctx, `

@@ -48,6 +48,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{"data": f})
 }
 
+type EnvSummary struct {
+	Enabled   bool `json:"enabled"`
+	RuleCount int  `json:"rule_count"`
+}
+
+type FlagListItem struct {
+	Flag
+	Environments map[string]EnvSummary `json:"environments"`
+}
+
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	p := h.resolveProject(w, r)
 	if p == nil {
@@ -60,7 +70,43 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"data": flags})
+	envs, _ := h.envSvc.ListByProject(r.Context(), p.ID)
+	states, _ := h.svc.ListStatesByProject(r.Context(), p.ID)
+	ruleCounts, _ := h.targetingSvc.CountRulesByProject(r.Context(), p.ID)
+
+	// Build env ID → slug lookup
+	envSlug := map[string]string{}
+	for _, env := range envs {
+		envSlug[env.ID] = env.Slug
+	}
+
+	// Index states by flagID+envID
+	stateMap := map[string]bool{}
+	for _, s := range states {
+		stateMap[s.FlagID+":"+s.EnvironmentID] = s.Enabled
+	}
+
+	// Index rule counts by flagID+envID
+	ruleMap := map[string]int{}
+	for _, rc := range ruleCounts {
+		ruleMap[rc.FlagID+":"+rc.EnvironmentID] = rc.Count
+	}
+
+	// Build enriched response
+	items := make([]FlagListItem, len(flags))
+	for i, f := range flags {
+		envSummary := map[string]EnvSummary{}
+		for _, env := range envs {
+			key := f.ID + ":" + env.ID
+			envSummary[env.Slug] = EnvSummary{
+				Enabled:   stateMap[key],
+				RuleCount: ruleMap[key],
+			}
+		}
+		items[i] = FlagListItem{Flag: f, Environments: envSummary}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"data": items})
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {

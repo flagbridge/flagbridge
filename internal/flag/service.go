@@ -67,6 +67,10 @@ func (s *Service) Delete(ctx context.Context, projectID, key string) error {
 	return s.repo.Delete(ctx, projectID, key)
 }
 
+func (s *Service) ListStatesByProject(ctx context.Context, projectID string) ([]FlagState, error) {
+	return s.repo.ListStatesByProject(ctx, projectID)
+}
+
 func (s *Service) GetState(ctx context.Context, flagID, envID string) (*FlagState, error) {
 	return s.repo.GetState(ctx, flagID, envID)
 }

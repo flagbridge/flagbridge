@@ -91,3 +91,33 @@ func (r *Repository) SetRules(ctx context.Context, flagID, envID string, inputs 
 
 	return rules, nil
 }
+
+type RuleCount struct {
+	FlagID        string
+	EnvironmentID string
+	Count         int
+}
+
+func (r *Repository) CountRulesByProject(ctx context.Context, projectID string) ([]RuleCount, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT tr.flag_id, tr.environment_id, COUNT(*) as rule_count
+		FROM targeting_rules tr
+		JOIN flags f ON f.id = tr.flag_id
+		WHERE f.project_id = $1
+		GROUP BY tr.flag_id, tr.environment_id
+	`, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var counts []RuleCount
+	for rows.Next() {
+		var rc RuleCount
+		if err := rows.Scan(&rc.FlagID, &rc.EnvironmentID, &rc.Count); err != nil {
+			return nil, err
+		}
+		counts = append(counts, rc)
+	}
+	return counts, nil
+}
