@@ -7,9 +7,14 @@
 **Feature flags with product intelligence. Open source.**
 
 [![Website](https://img.shields.io/badge/website-flagbridge.io-blue)](https://flagbridge.io)
+[![Docs](https://img.shields.io/badge/docs-docs.flagbridge.io-blueviolet)](https://docs.flagbridge.io)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+[![Go](https://img.shields.io/badge/go-1.22+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![npm](https://img.shields.io/npm/v/@flagbridge/sdk-node?label=sdk-node&color=CB3837&logo=npm)](https://www.npmjs.com/package/@flagbridge/sdk-node)
 
 FlagBridge is an open-core feature flag management platform that combines powerful flag evaluation with product intelligence — helping teams not just toggle features, but understand their impact.
+
+> **Self-host in 5 minutes** — no vendor lock-in, no per-seat pricing, no surprises.
 
 This repository contains the **Go API server**. The admin dashboard, SDKs, docs, and Helm charts live in separate repositories under the [flagbridge GitHub organization](https://github.com/flagbridge).
 
@@ -33,17 +38,32 @@ This repository contains the **Go API server**. The admin dashboard, SDKs, docs,
 ## Quick Start
 
 ```bash
-# Clone the repository
+# Clone and start
 git clone https://github.com/flagbridge/flagbridge.git
 cd flagbridge
-
-# Start the API and database
+cp .env.example .env
 docker compose up -d
 
-# API is available at http://localhost:8080
+# Verify it's running
+curl http://localhost:8080/v1/health
+# {"status":"ok"}
+
+# Login (default admin credentials)
+TOKEN=$(curl -s -X POST http://localhost:8080/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@flagbridge.io","password":"flagbridge-admin-2026"}' \
+  | jq -r '.data.token')
+
+# Create a project and your first flag
+curl -X POST http://localhost:8080/v1/projects \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"My App","slug":"my-app"}'
 ```
 
-The compose file starts the Go API server and a PostgreSQL instance. Database migrations run automatically on startup via goose.
+The compose file starts the Go API, PostgreSQL, and the Admin dashboard. Migrations run automatically on first start. Admin UI available at `http://localhost:3000`.
+
+> **Full walkthrough:** [docs.flagbridge.io/getting-started/quickstart](https://docs.flagbridge.io/getting-started/quickstart)
 
 ---
 
@@ -98,7 +118,7 @@ The API exposes 39 endpoints. Evaluation resolution order: session override > ta
 | Repository | Description |
 |---|---|
 | [flagbridge/admin](https://github.com/flagbridge/admin) | Admin dashboard UI (Next.js, Tailwind) |
-| [flagbridge/docs](https://github.com/flagbridge/docs) | Documentation site (Docusaurus) |
+| [flagbridge/docs](https://github.com/flagbridge/docs) | Documentation site (VitePress) |
 | [flagbridge/sdk-node](https://github.com/flagbridge/sdk-node) | Node.js SDK (`@flagbridge/sdk-node`) |
 | [flagbridge/sdk-react](https://github.com/flagbridge/sdk-react) | React SDK (`@flagbridge/sdk-react`) |
 | [flagbridge/sdk-go](https://github.com/flagbridge/sdk-go) | Go SDK |

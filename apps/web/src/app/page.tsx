@@ -237,6 +237,7 @@ function Pricing() {
       license: t("communityLicense"),
       features: Array.from({ length: 6 }, (_, i) => t(`communityFeatures.${i}`)),
       cta: "Deploy Now",
+      href: "https://docs.flagbridge.io/getting-started/quickstart",
       highlighted: false,
     },
     {
@@ -246,6 +247,7 @@ function Pricing() {
       period: "/month",
       features: Array.from({ length: 6 }, (_, i) => t(`proFeatures.${i}`)),
       cta: "Start Free Trial",
+      href: "https://docs.flagbridge.io/getting-started/installation",
       highlighted: true,
     },
     {
@@ -254,6 +256,7 @@ function Pricing() {
       price: t("enterprisePrice"),
       features: Array.from({ length: 6 }, (_, i) => t(`enterpriseFeatures.${i}`)),
       cta: "Contact Sales",
+      href: "mailto:hello@flagbridge.io",
       highlighted: false,
     },
   ];
@@ -296,15 +299,16 @@ function Pricing() {
                 </p>
               </div>
 
-              <button
-                className={`mb-8 w-full rounded-lg px-6 py-3 font-medium transition-colors ${
+              <a
+                href={plan.href}
+                className={`mb-8 block w-full rounded-lg px-6 py-3 text-center font-medium transition-colors ${
                   plan.highlighted
                     ? "bg-white text-[#3B82F6] hover:bg-blue-50"
                     : "bg-[#3B82F6] text-white hover:bg-blue-600"
                 }`}
               >
                 {plan.cta}
-              </button>
+              </a>
 
               <ul className="space-y-4">
                 {plan.features.map((feature) => (
@@ -430,7 +434,7 @@ function TechStack() {
     { name: "Go", desc: "API Server" },
     { name: "Next.js 15", desc: "Admin UI" },
     { name: "PostgreSQL", desc: "Database" },
-    { name: "Redis", desc: "Cache & Pub/Sub" },
+    { name: "In-Memory", desc: "Cache Layer" },
     { name: "TypeScript", desc: "SDKs" },
     { name: "Docker", desc: "Deployment" },
     { name: "Kubernetes", desc: "Helm Charts" },
