@@ -1,4 +1,4 @@
-.PHONY: dev dev-down api web test test-integration lint migrate
+.PHONY: dev dev-down run test test-integration lint migrate
 
 dev:
 	docker compose up -d
@@ -6,25 +6,20 @@ dev:
 dev-down:
 	docker compose down
 
-api:
-	cd apps/api && go run ./cmd/server
-
-web:
-	cd apps/web && pnpm dev
+run:
+	go run ./cmd/server
 
 test:
-	cd apps/api && go test ./...
-	cd apps/web && pnpm test
+	go test ./...
 
 test-integration:
-	docker compose -f apps/api/docker-compose.test.yml up -d --wait
-	cd apps/api && DATABASE_URL="postgres://flagbridge_test:flagbridge_test@localhost:5433/flagbridge_test?sslmode=disable" \
+	docker compose -f docker-compose.test.yml up -d --wait
+	DATABASE_URL="postgres://flagbridge_test:flagbridge_test@localhost:5433/flagbridge_test?sslmode=disable" \
 		go test -tags=integration -count=1 -timeout=120s ./...
-	docker compose -f apps/api/docker-compose.test.yml down
+	docker compose -f docker-compose.test.yml down
 
 lint:
-	cd apps/api && golangci-lint run
-	cd apps/web && pnpm lint
+	golangci-lint run
 
 migrate:
-	cd apps/api && go run ./cmd/migrate up
+	go run ./cmd/migrate up

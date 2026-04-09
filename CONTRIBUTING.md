@@ -15,20 +15,16 @@ Thank you for your interest in contributing to FlagBridge!
 ## Development Setup
 
 ```bash
-# Start local environment
+# Start local environment (API + PostgreSQL + Admin)
 docker compose up -d
 
-# Run API
-cd apps/api && go run ./cmd/server
-
-# Run Web
-cd apps/web && pnpm dev
+# Or run API directly (requires local PostgreSQL)
+go run ./cmd/server
 ```
 
 ## Code Style
 
 - **Go**: `gofmt` and `golangci-lint`
-- **TypeScript**: ESLint + Prettier via project config
 - **Commits**: Conventional Commits (feat, fix, chore, docs, refactor, test)
 
 ## Reporting Issues

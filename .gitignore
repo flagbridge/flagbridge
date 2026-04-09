@@ -1,15 +1,6 @@
-# Dependencies
-node_modules/
-.pnpm-store/
-
-# Build outputs
-dist/
-.next/
-out/
-
-# Go
-apps/api/flagbridge-api
-apps/api/server
+# Binary
+server
+flagbridge-api
 
 # Environment
 .env
@@ -27,15 +18,8 @@ apps/api/server
 .DS_Store
 Thumbs.db
 
-# Debug
-npm-debug.log*
-pnpm-debug.log*
-
 # Testing
 coverage/
 
-# Turbo
-.turbo/
-
-# Bootstrap
-bootstrap-log.md
+# Debug
+debug.log

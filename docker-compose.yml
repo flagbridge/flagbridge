@@ -1,8 +1,6 @@
 services:
   api:
-    build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+    build: .
     ports:
       - "8080:8080"
     env_file:
@@ -10,17 +8,12 @@ services:
     environment:
       - PORT=8080
       - DATABASE_URL=postgres://flagbridge:flagbridge@postgres:5432/flagbridge?sslmode=disable
-      - REDIS_URL=redis://redis:6379
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_started
 
   admin:
-    build:
-      context: ./apps/web
-      dockerfile: Dockerfile
+    image: ghcr.io/flagbridge/admin:latest
     ports:
       - "3000:3000"
     environment:
@@ -39,20 +32,12 @@ services:
       - POSTGRES_DB=flagbridge
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./apps/api/migrations:/docker-entrypoint-initdb.d
+      - ./migrations:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U flagbridge"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redisdata:/data
-
 volumes:
   pgdata:
-  redisdata:

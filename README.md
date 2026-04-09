@@ -14,9 +14,28 @@
 
 FlagBridge is an open-core feature flag management platform that combines powerful flag evaluation with product intelligence — helping teams not just toggle features, but understand their impact.
 
-> **Self-host in 5 minutes** — no vendor lock-in, no per-seat pricing, no surprises.
+> **Self-host in 2 minutes** — no vendor lock-in, no per-seat pricing, no surprises.
 
-This repository contains the **Go API server**. The admin dashboard, SDKs, docs, and Helm charts live in separate repositories under the [flagbridge GitHub organization](https://github.com/flagbridge).
+---
+
+## Quick Start
+
+```bash
+# Download and start (no clone needed)
+curl -O https://raw.githubusercontent.com/flagbridge/flagbridge/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/flagbridge/flagbridge/main/.env.example
+cp .env.example .env
+docker compose up -d
+
+# Verify it's running
+curl http://localhost:8080/v1/health
+# {"status":"ok"}
+```
+
+The compose file starts the Go API, PostgreSQL, and the Admin dashboard.
+Migrations run automatically on first start. Admin UI available at `http://localhost:3000`.
+
+> **Full walkthrough:** [docs.flagbridge.io/getting-started/quickstart](https://docs.flagbridge.io/getting-started/quickstart)
 
 ---
 
@@ -35,67 +54,31 @@ This repository contains the **Go API server**. The admin dashboard, SDKs, docs,
 
 ---
 
-## Quick Start
-
-```bash
-# Clone and start
-git clone https://github.com/flagbridge/flagbridge.git
-cd flagbridge
-cp .env.example .env
-docker compose up -d
-
-# Verify it's running
-curl http://localhost:8080/v1/health
-# {"status":"ok"}
-
-# Login (default admin credentials)
-TOKEN=$(curl -s -X POST http://localhost:8080/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@flagbridge.io","password":"flagbridge-admin-2026"}' \
-  | jq -r '.data.token')
-
-# Create a project and your first flag
-curl -X POST http://localhost:8080/v1/projects \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"My App","slug":"my-app"}'
-```
-
-The compose file starts the Go API, PostgreSQL, and the Admin dashboard. Migrations run automatically on first start. Admin UI available at `http://localhost:3000`.
-
-> **Full walkthrough:** [docs.flagbridge.io/getting-started/quickstart](https://docs.flagbridge.io/getting-started/quickstart)
-
----
-
 ## Architecture
 
-This repo contains a single application: the Go API server.
-
 ```
-apps/
-└── api/
-    ├── cmd/server/main.go       # Entry point
-    ├── internal/
-    │   ├── flag/                # Flag CRUD + evaluation
-    │   ├── project/             # Project management
-    │   ├── environment/         # Environment management
-    │   ├── evaluation/          # Flag evaluation engine
-    │   ├── targeting/           # Targeting rules
-    │   ├── testing/             # Test sessions & overrides
-    │   ├── webhook/             # Webhook delivery
-    │   ├── apikey/              # API key management
-    │   ├── audit/               # Audit logging
-    │   ├── sse/                 # Real-time SSE streaming
-    │   ├── auth/                # Auth (JWT + API keys)
-    │   ├── middleware/          # HTTP middleware
-    │   ├── cache/               # CacheProvider (in-memory)
-    │   ├── config/              # Environment config
-    │   └── database/            # pgx PostgreSQL client
-    ├── migrations/              # goose SQL migrations
-    └── openapi.yaml             # OpenAPI 3.1 spec
+cmd/server/main.go       # Entry point
+internal/
+├── flag/                # Flag CRUD + evaluation
+├── project/             # Project management
+├── environment/         # Environment management
+├── evaluation/          # Flag evaluation engine
+├── targeting/           # Targeting rules
+├── testing/             # Test sessions & overrides
+├── webhook/             # Webhook delivery
+├── apikey/              # API key management
+├── audit/               # Audit logging
+├── sse/                 # Real-time SSE streaming
+├── auth/                # Auth (JWT + API keys)
+├── middleware/           # HTTP middleware
+├── cache/               # CacheProvider (in-memory)
+├── config/              # Environment config
+└── database/            # pgx PostgreSQL client
+migrations/              # goose SQL migrations
+openapi.yaml             # OpenAPI 3.1 spec
 ```
 
-The API exposes 39 endpoints. Evaluation resolution order: session override > targeting rules > percentage rollout > environment default > flag default.
+The API exposes 72 endpoints (40 CE + 32 Pro). Evaluation resolution order: session override > targeting rules > percentage rollout > environment default > flag default.
 
 ---
 
@@ -113,12 +96,44 @@ The API exposes 39 endpoints. Evaluation resolution order: session override > ta
 
 ---
 
+## Self-Hosting
+
+### Docker Compose (recommended)
+
+```bash
+git clone https://github.com/flagbridge/flagbridge.git
+cd flagbridge
+cp .env.example .env
+docker compose up -d
+```
+
+This starts:
+- **API** on `http://localhost:8080`
+- **Admin UI** on `http://localhost:3000`
+- **PostgreSQL** on `localhost:5432`
+
+### Docker only (API)
+
+```bash
+docker run -p 8080:8080 \
+  -e DATABASE_URL=postgres://user:pass@host:5432/flagbridge \
+  -e JWT_SECRET=your-secret \
+  ghcr.io/flagbridge/flagbridge:latest
+```
+
+### Kubernetes
+
+See [flagbridge/helm-charts](https://github.com/flagbridge/helm-charts) for Helm charts.
+
+---
+
 ## Related Repositories
 
 | Repository | Description |
 |---|---|
 | [flagbridge/admin](https://github.com/flagbridge/admin) | Admin dashboard UI (Next.js, Tailwind) |
-| [flagbridge/docs](https://github.com/flagbridge/docs) | Documentation site (VitePress) |
+| [flagbridge/landing](https://github.com/flagbridge/landing) | Marketing website (Next.js) |
+| [flagbridge/docs](https://github.com/flagbridge/docs) | Documentation site |
 | [flagbridge/sdk-node](https://github.com/flagbridge/sdk-node) | Node.js SDK (`@flagbridge/sdk-node`) |
 | [flagbridge/sdk-react](https://github.com/flagbridge/sdk-react) | React SDK (`@flagbridge/sdk-react`) |
 | [flagbridge/sdk-go](https://github.com/flagbridge/sdk-go) | Go SDK |

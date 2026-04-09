@@ -1,11 +1,15 @@
 # CLAUDE.md — FlagBridge API (Go)
 
-> Copiar pra: flagbridge/flagbridge/CLAUDE.md
+## What is FlagBridge
 
-## O que é
+FlagBridge is an open-core Feature Flag Management platform with product intelligence.
+This repo is the Go API server — the core of the self-hosted distribution.
 
-FlagBridge — open-core feature flag management com product intelligence.
-Este repo é a API Go central.
+- **Website:** https://flagbridge.io
+- **Admin UI:** https://admin.flagbridge.io
+- **Docs:** https://docs.flagbridge.io
+- **Org:** https://github.com/flagbridge
+- **License:** Apache 2.0 (CE), Commercial (Pro)
 
 ## Stack
 
@@ -13,24 +17,29 @@ Go 1.22+, Chi router, pgx (PostgreSQL via Supabase), sqlc, goose, slog.
 Cache: in-memory (CacheProvider interface). Auth: Supabase Auth SaaS / bcrypt+JWT self-hosted (AuthProvider interface).
 Deploy: Fly.io (region gru). CI: GitHub Actions.
 
-## Estrutura
+## Structure
 
 ```
+cmd/server/          # Entry point
 internal/
-├── flag/        # CRUD + evaluation engine
-├── testing/     # Sessions, overrides, cleanup
-├── webhook/     # Registration, delivery, retry
-├── project/     # Project domain
-├── auth/        # AuthProvider interface
-├── plugin/      # Plugin runtime
-├── integration/ # Managed integrations (Pro)
-└── api/         # HTTP handlers (Chi)
-pkg/
-├── database/    # pgx client
-├── config/      # Env config
-├── cache/       # CacheProvider interface
-└── middleware/   # HTTP middleware
-migrations/      # goose SQL
+├── flag/            # Flag CRUD + evaluation engine
+├── project/         # Project domain
+├── environment/     # Environment management
+├── evaluation/      # Flag evaluation engine
+├── targeting/       # Targeting rules
+├── testing/         # Sessions, overrides, cleanup
+├── webhook/         # Registration, delivery, retry
+├── apikey/          # API key management
+├── audit/           # Audit logging
+├── sse/             # Real-time SSE streaming
+├── auth/            # AuthProvider interface (JWT + API keys)
+├── middleware/       # HTTP middleware
+├── cache/           # CacheProvider interface (in-memory)
+├── config/          # Env config
+├── database/        # pgx PostgreSQL client
+└── testutil/        # Test helpers
+migrations/          # goose SQL migrations
+openapi.yaml         # OpenAPI 3.1 spec
 ```
 
 ## API — 72 endpoints (40 CE + 32 Pro)
@@ -39,17 +48,17 @@ Keys: fb_sk_{eval|test|mgmt|full}_...
 Resolution: session override > targeting > rollout (MurmurHash3) > env default > flag default.
 Pro gating: ADR-001 dogfooding via _flagbridge internal project.
 
-## Convenções
+## Conventions
 
 - snake_case DB, camelCase JSON, PascalCase Go
 - Table-driven tests com testify
 - Errors: `fmt.Errorf("context: %w", err)`
 - Structured logging via slog
 
-## NÃO faça
+## Do NOT
 
-- Não mude Pro gating (ADR-001) sem aprovação
-- Não modifique migrations aplicadas — crie novas
-- Não adicione Redis — use CacheProvider in-memory
-- Não exponha _flagbridge no público
-- Não adicione deps Go sem justificativa
+- Change Pro gating (ADR-001) without approval
+- Modify applied migrations — create new ones
+- Add Redis — use CacheProvider in-memory
+- Expose `_flagbridge` internal project publicly
+- Add Go deps without justification
