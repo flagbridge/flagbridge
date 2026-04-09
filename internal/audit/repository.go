@@ -79,7 +79,7 @@ func (r *Repository) List(ctx context.Context, params ListParams) ([]Entry, int,
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, project_id, user_id, action, entity_type, entity_id, changes, ip_address, created_at
+		SELECT id, project_id, user_id, action, entity_type, entity_id, changes, ip_address::text, created_at
 		FROM audit_log
 		WHERE %s
 		ORDER BY created_at DESC
