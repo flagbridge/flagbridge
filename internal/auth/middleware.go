@@ -74,7 +74,7 @@ func APIKeyMiddleware(db *pgxpool.Pool, requiredScope string) func(http.Handler)
 
 			// Update last_used_at
 			go func() {
-				db.Exec(context.Background(), `UPDATE api_keys SET last_used_at = now() WHERE id = $1`, info.ID)
+				_, _ = db.Exec(context.Background(), `UPDATE api_keys SET last_used_at = now() WHERE id = $1`, info.ID)
 			}()
 
 			ctx := context.WithValue(r.Context(), APIKeyContextKey, &info)

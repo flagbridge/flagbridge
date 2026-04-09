@@ -148,7 +148,7 @@ func CreateTestServer(t *testing.T, pool *pgxpool.Pool) *httptest.Server {
 	r.Route("/v1", func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		})
 		r.Post("/auth/login", loginHandler(pool, TestJWTSecret))
 
@@ -384,7 +384,7 @@ func loginHandler(db *pgxpool.Pool, jwtSecret string) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": map[string]any{
 				"token": token,
 				"user": map[string]string{
@@ -401,7 +401,7 @@ func loginHandler(db *pgxpool.Pool, jwtSecret string) http.HandlerFunc {
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"error": map[string]string{"code": code, "message": message},
 	})
 }
