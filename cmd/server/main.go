@@ -116,7 +116,7 @@ func main() {
 		// Public
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		})
 		r.Post("/auth/login", loginHandler(db, cfg.JWTSecret))
 
@@ -269,7 +269,7 @@ func loginHandler(db *pgxpool.Pool, jwtSecret string) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": map[string]any{
 				"token": token,
 				"user": map[string]string{
@@ -311,7 +311,7 @@ func (h *targetingHandlerWrapper) GetRules(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]any{"data": rules})
+	_ = json.NewEncoder(w).Encode(map[string]any{"data": rules})
 }
 
 func (h *targetingHandlerWrapper) SetRules(w http.ResponseWriter, r *http.Request) {
@@ -345,7 +345,7 @@ func (h *targetingHandlerWrapper) SetRules(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]any{"data": rules})
+	_ = json.NewEncoder(w).Encode(map[string]any{"data": rules})
 }
 
 func (h *targetingHandlerWrapper) resolve(w http.ResponseWriter, r *http.Request) (flagID, envID, envSlug, projectSlug string, err error) {
@@ -377,7 +377,7 @@ func (h *targetingHandlerWrapper) resolve(w http.ResponseWriter, r *http.Request
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"error": map[string]string{"code": code, "message": message},
 	})
 }

@@ -1,6 +1,6 @@
 # Binary
-server
-flagbridge-api
+/server
+/flagbridge-api
 
 # Environment
 .env
