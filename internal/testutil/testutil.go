@@ -136,7 +136,7 @@ func CreateTestServer(t *testing.T, pool *pgxpool.Pool) *httptest.Server {
 	envHandler := environment.NewHandler(envSvc, projectSvc)
 	targetingRepo := targeting.NewRepository(pool)
 	targetingSvc := targeting.NewService(targetingRepo)
-	flagHandler := flag.NewHandler(flagSvc, projectSvc, envSvc, targetingSvc, memCache, hub)
+	flagHandler := flag.NewHandler(flagSvc, projectSvc, envSvc, targetingSvc, auditSvc, memCache, hub)
 	evalHandler := evaluation.NewHandler(pool, memCache)
 	apikeyHandler := apikey.NewHandler(apikeySvc)
 	auditHandler := audit.NewHandler(auditSvc)

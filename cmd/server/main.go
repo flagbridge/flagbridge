@@ -90,7 +90,7 @@ func main() {
 	// Handlers
 	projectHandler := project.NewHandler(projectSvc)
 	envHandler := environment.NewHandler(envSvc, projectSvc)
-	flagHandler := flag.NewHandler(flagSvc, projectSvc, envSvc, targetingSvc, memCache, hub)
+	flagHandler := flag.NewHandler(flagSvc, projectSvc, envSvc, targetingSvc, auditSvc, memCache, hub)
 	evalHandler := evaluation.NewHandler(db, memCache)
 	apikeyHandler := apikey.NewHandler(apikeySvc)
 	auditHandler := audit.NewHandler(auditSvc)
@@ -99,7 +99,7 @@ func main() {
 
 
 	// Build targeting handler inline since it needs cross-package deps
-	targetingHandler := newTargetingHandler(targetingSvc, projectSvc, flagSvc, envSvc, memCache, hub)
+	targetingHandler := newTargetingHandler(targetingSvc, projectSvc, flagSvc, envSvc, auditSvc, memCache, hub)
 
 	// Router
 	r := chi.NewRouter()
@@ -289,16 +289,17 @@ type targetingHandlerWrapper struct {
 	projectSvc *project.Service
 	flagSvc    *flag.Service
 	envSvc     *environment.Service
+	auditSvc   *audit.Service
 	cache      cache.Provider
 	hub        *sse.Hub
 }
 
-func newTargetingHandler(svc *targeting.Service, ps *project.Service, fs *flag.Service, es *environment.Service, c cache.Provider, h *sse.Hub) *targetingHandlerWrapper {
-	return &targetingHandlerWrapper{svc: svc, projectSvc: ps, flagSvc: fs, envSvc: es, cache: c, hub: h}
+func newTargetingHandler(svc *targeting.Service, ps *project.Service, fs *flag.Service, es *environment.Service, as *audit.Service, c cache.Provider, h *sse.Hub) *targetingHandlerWrapper {
+	return &targetingHandlerWrapper{svc: svc, projectSvc: ps, flagSvc: fs, envSvc: es, auditSvc: as, cache: c, hub: h}
 }
 
 func (h *targetingHandlerWrapper) GetRules(w http.ResponseWriter, r *http.Request) {
-	flagID, envID, _, _, err := h.resolve(w, r)
+	flagID, envID, _, _, _, err := h.resolve(w, r)
 	if err != nil {
 		return
 	}
@@ -315,7 +316,7 @@ func (h *targetingHandlerWrapper) GetRules(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *targetingHandlerWrapper) SetRules(w http.ResponseWriter, r *http.Request) {
-	flagID, envID, envSlug, projectSlug, err := h.resolve(w, r)
+	flagID, envID, envSlug, projectSlug, projectID, err := h.resolve(w, r)
 	if err != nil {
 		return
 	}
@@ -333,6 +334,15 @@ func (h *targetingHandlerWrapper) SetRules(w http.ResponseWriter, r *http.Reques
 	}
 
 	flagKey := chi.URLParam(r, "key")
+
+	claims := auth.GetClaims(r.Context())
+	h.auditSvc.Log(r.Context(), audit.LogInput{
+		ProjectID: projectID, UserID: claims.UserID, Action: "updated",
+		EntityType: "targeting_rules", EntityID: flagID,
+		Changes: map[string]any{"flag": flagKey, "environment": envSlug, "rule_count": len(rules)},
+		IPAddress: r.RemoteAddr,
+	})
+
 	h.cache.Invalidate(r.Context(), "eval:"+projectSlug+":"+envSlug+":"+flagKey)
 
 	h.hub.Broadcast(envSlug, sse.Event{
@@ -348,7 +358,7 @@ func (h *targetingHandlerWrapper) SetRules(w http.ResponseWriter, r *http.Reques
 	_ = json.NewEncoder(w).Encode(map[string]any{"data": rules})
 }
 
-func (h *targetingHandlerWrapper) resolve(w http.ResponseWriter, r *http.Request) (flagID, envID, envSlug, projectSlug string, err error) {
+func (h *targetingHandlerWrapper) resolve(w http.ResponseWriter, r *http.Request) (flagID, envID, envSlug, projectSlug, projectID string, err error) {
 	projectSlug = chi.URLParam(r, "slug")
 	flagKey := chi.URLParam(r, "key")
 	envSlug = chi.URLParam(r, "env")
@@ -356,22 +366,22 @@ func (h *targetingHandlerWrapper) resolve(w http.ResponseWriter, r *http.Request
 	p, pErr := h.projectSvc.GetBySlug(r.Context(), projectSlug)
 	if pErr != nil {
 		writeError(w, http.StatusNotFound, "not_found", "project not found")
-		return "", "", "", "", fmt.Errorf("project not found")
+		return "", "", "", "", "", fmt.Errorf("project not found")
 	}
 
 	f, fErr := h.flagSvc.GetByKey(r.Context(), p.ID, flagKey)
 	if fErr != nil {
 		writeError(w, http.StatusNotFound, "not_found", "flag not found")
-		return "", "", "", "", fmt.Errorf("flag not found")
+		return "", "", "", "", "", fmt.Errorf("flag not found")
 	}
 
 	e, eErr := h.envSvc.GetBySlug(r.Context(), p.ID, envSlug)
 	if eErr != nil {
 		writeError(w, http.StatusNotFound, "not_found", "environment not found")
-		return "", "", "", "", fmt.Errorf("environment not found")
+		return "", "", "", "", "", fmt.Errorf("environment not found")
 	}
 
-	return f.ID, e.ID, envSlug, projectSlug, nil
+	return f.ID, e.ID, envSlug, projectSlug, p.ID, nil
 }
 
 func writeError(w http.ResponseWriter, status int, code, message string) {

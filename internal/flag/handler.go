@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/flagbridge/flagbridge/internal/audit"
 	"github.com/flagbridge/flagbridge/internal/auth"
 	"github.com/flagbridge/flagbridge/internal/cache"
 	"github.com/flagbridge/flagbridge/internal/environment"
@@ -14,16 +15,17 @@ import (
 )
 
 type Handler struct {
-	svc           *Service
-	projectSvc    *project.Service
-	envSvc        *environment.Service
-	targetingSvc  *targeting.Service
-	cache         cache.Provider
-	hub           *sse.Hub
+	svc          *Service
+	projectSvc   *project.Service
+	envSvc       *environment.Service
+	targetingSvc *targeting.Service
+	auditSvc     *audit.Service
+	cache        cache.Provider
+	hub          *sse.Hub
 }
 
-func NewHandler(svc *Service, projectSvc *project.Service, envSvc *environment.Service, targetingSvc *targeting.Service, c cache.Provider, hub *sse.Hub) *Handler {
-	return &Handler{svc: svc, projectSvc: projectSvc, envSvc: envSvc, targetingSvc: targetingSvc, cache: c, hub: hub}
+func NewHandler(svc *Service, projectSvc *project.Service, envSvc *environment.Service, targetingSvc *targeting.Service, auditSvc *audit.Service, c cache.Provider, hub *sse.Hub) *Handler {
+	return &Handler{svc: svc, projectSvc: projectSvc, envSvc: envSvc, targetingSvc: targetingSvc, auditSvc: auditSvc, cache: c, hub: hub}
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -44,6 +46,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "create_failed", err.Error())
 		return
 	}
+
+	h.auditSvc.Log(r.Context(), audit.LogInput{
+		ProjectID: p.ID, UserID: claims.UserID, Action: "created",
+		EntityType: "flag", EntityID: f.ID,
+		Changes: map[string]any{"key": f.Key, "type": f.Type}, IPAddress: r.RemoteAddr,
+	})
 
 	writeJSON(w, http.StatusCreated, map[string]any{"data": f})
 }
@@ -167,6 +175,13 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims := auth.GetClaims(r.Context())
+	h.auditSvc.Log(r.Context(), audit.LogInput{
+		ProjectID: p.ID, UserID: claims.UserID, Action: "updated",
+		EntityType: "flag", EntityID: f.ID,
+		Changes: req, IPAddress: r.RemoteAddr,
+	})
+
 	writeJSON(w, http.StatusOK, map[string]any{"data": f})
 }
 
@@ -177,10 +192,23 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := chi.URLParam(r, "key")
+	f, err := h.svc.GetByKey(r.Context(), p.ID, key)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", "flag not found")
+		return
+	}
+
 	if err := h.svc.Delete(r.Context(), p.ID, key); err != nil {
 		writeError(w, http.StatusNotFound, "not_found", "flag not found")
 		return
 	}
+
+	claims := auth.GetClaims(r.Context())
+	h.auditSvc.Log(r.Context(), audit.LogInput{
+		ProjectID: p.ID, UserID: claims.UserID, Action: "deleted",
+		EntityType: "flag", EntityID: f.ID,
+		Changes: map[string]any{"key": key}, IPAddress: r.RemoteAddr,
+	})
 
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]string{"status": "deleted"}})
 }
@@ -248,6 +276,13 @@ func (h *Handler) SetState(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "update_failed", err.Error())
 		return
 	}
+
+	h.auditSvc.Log(r.Context(), audit.LogInput{
+		ProjectID: p.ID, UserID: claims.UserID, Action: "toggled",
+		EntityType: "flag_state", EntityID: state.ID,
+		Changes: map[string]any{"flag": key, "environment": envSlug, "enabled": req.Enabled},
+		IPAddress: r.RemoteAddr,
+	})
 
 	// Invalidate evaluation cache for this flag
 	h.cache.Invalidate(r.Context(), "eval:"+p.Slug+":"+envSlug+":"+key)
