@@ -2,6 +2,17 @@
 -- Aligns the manually-created Supabase schema with migration 001+002+003
 
 -- ============================================================
+-- ENVIRONMENTS: add color, sort_order
+-- ============================================================
+ALTER TABLE environments ADD COLUMN IF NOT EXISTS color TEXT;
+ALTER TABLE environments ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0;
+
+-- ============================================================
+-- FLAG_STATES: add updated_by
+-- ============================================================
+ALTER TABLE flag_states ADD COLUMN IF NOT EXISTS updated_by UUID REFERENCES users(id);
+
+-- ============================================================
 -- PROJECTS: add created_by
 -- ============================================================
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id);
