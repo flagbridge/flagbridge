@@ -23,6 +23,7 @@ import (
 	"github.com/flagbridge/flagbridge/internal/project"
 	"github.com/flagbridge/flagbridge/internal/sse"
 	fbtesting "github.com/flagbridge/flagbridge/internal/testing"
+	"github.com/flagbridge/flagbridge/internal/targeting"
 	"github.com/flagbridge/flagbridge/internal/webhook"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -133,7 +134,9 @@ func CreateTestServer(t *testing.T, pool *pgxpool.Pool) *httptest.Server {
 	// Handlers
 	projectHandler := project.NewHandler(projectSvc)
 	envHandler := environment.NewHandler(envSvc, projectSvc)
-	flagHandler := flag.NewHandler(flagSvc, projectSvc, envSvc, memCache, hub)
+	targetingRepo := targeting.NewRepository(pool)
+	targetingSvc := targeting.NewService(targetingRepo)
+	flagHandler := flag.NewHandler(flagSvc, projectSvc, envSvc, targetingSvc, memCache, hub)
 	evalHandler := evaluation.NewHandler(pool, memCache)
 	apikeyHandler := apikey.NewHandler(apikeySvc)
 	auditHandler := audit.NewHandler(auditSvc)

@@ -90,7 +90,7 @@ func main() {
 	// Handlers
 	projectHandler := project.NewHandler(projectSvc)
 	envHandler := environment.NewHandler(envSvc, projectSvc)
-	flagHandler := flag.NewHandler(flagSvc, projectSvc, envSvc, memCache, hub)
+	flagHandler := flag.NewHandler(flagSvc, projectSvc, envSvc, targetingSvc, memCache, hub)
 	evalHandler := evaluation.NewHandler(db, memCache)
 	apikeyHandler := apikey.NewHandler(apikeySvc)
 	auditHandler := audit.NewHandler(auditSvc)

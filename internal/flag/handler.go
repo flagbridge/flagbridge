@@ -9,19 +9,21 @@ import (
 	"github.com/flagbridge/flagbridge/internal/environment"
 	"github.com/flagbridge/flagbridge/internal/project"
 	"github.com/flagbridge/flagbridge/internal/sse"
+	"github.com/flagbridge/flagbridge/internal/targeting"
 	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
-	svc        *Service
-	projectSvc *project.Service
-	envSvc     *environment.Service
-	cache      cache.Provider
-	hub        *sse.Hub
+	svc           *Service
+	projectSvc    *project.Service
+	envSvc        *environment.Service
+	targetingSvc  *targeting.Service
+	cache         cache.Provider
+	hub           *sse.Hub
 }
 
-func NewHandler(svc *Service, projectSvc *project.Service, envSvc *environment.Service, c cache.Provider, hub *sse.Hub) *Handler {
-	return &Handler{svc: svc, projectSvc: projectSvc, envSvc: envSvc, cache: c, hub: hub}
+func NewHandler(svc *Service, projectSvc *project.Service, envSvc *environment.Service, targetingSvc *targeting.Service, c cache.Provider, hub *sse.Hub) *Handler {
+	return &Handler{svc: svc, projectSvc: projectSvc, envSvc: envSvc, targetingSvc: targetingSvc, cache: c, hub: hub}
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +76,30 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"data": f})
+	envs, _ := h.envSvc.ListByProject(r.Context(), p.ID)
+
+	states := map[string]*FlagState{}
+	rules := map[string][]targeting.Rule{}
+	for _, env := range envs {
+		if st, err := h.svc.GetState(r.Context(), f.ID, env.ID); err == nil {
+			states[env.Slug] = st
+		}
+		if rl, err := h.targetingSvc.GetRules(r.Context(), f.ID, env.ID); err == nil {
+			rules[env.Slug] = rl
+		}
+	}
+
+	type FlagDetail struct {
+		*Flag
+		States map[string]*FlagState      `json:"states"`
+		Rules  map[string][]targeting.Rule `json:"rules"`
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"data": FlagDetail{
+		Flag:   f,
+		States: states,
+		Rules:  rules,
+	}})
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
