@@ -102,7 +102,7 @@ func Evaluate(flagKey string, data FlagData, ctx EvalContext) Result {
 		bucket := rolloutBucket(ctx.UserID, flagKey)
 		if bucket < data.Rollout {
 			value := data.DefaultValue
-			if data.StateValue != nil && len(data.StateValue) > 0 {
+			if len(data.StateValue) > 0 {
 				value = data.StateValue
 			}
 			return Result{
@@ -115,7 +115,7 @@ func Evaluate(flagKey string, data FlagData, ctx EvalContext) Result {
 
 	// No rule matched, not in rollout — return state value if set, otherwise default
 	value := data.DefaultValue
-	if data.StateValue != nil && len(data.StateValue) > 0 {
+	if len(data.StateValue) > 0 {
 		value = data.StateValue
 	}
 

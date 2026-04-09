@@ -9,12 +9,7 @@ import (
 )
 
 type Handler struct {
-	svc        *Service
-	projectSvc projectResolver
-}
-
-type projectResolver interface {
-	GetIDBySlug(slug string) (string, error)
+	svc *Service
 }
 
 func NewHandler(svc *Service) *Handler {

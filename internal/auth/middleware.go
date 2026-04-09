@@ -104,5 +104,5 @@ func extractBearerToken(r *http.Request) string {
 func unauthorizedJSON(w http.ResponseWriter, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
-	w.Write([]byte(`{"error":{"code":"unauthorized","message":"` + msg + `"}}`))
+	_, _ = w.Write([]byte(`{"error":{"code":"unauthorized","message":"` + msg + `"}}`))
 }

@@ -60,11 +60,7 @@ func (s *Service) SetOverride(ctx context.Context, sessionID string, req SetOver
 		return nil, err
 	}
 
-	session.Overrides[req.FlagKey] = Override{
-		FlagKey:     req.FlagKey,
-		Value:       req.Value,
-		Environment: req.Environment,
-	}
+	session.Overrides[req.FlagKey] = Override(req)
 
 	if err := s.repo.UpdateOverrides(ctx, sessionID, session.Overrides); err != nil {
 		return nil, err
@@ -82,11 +78,7 @@ func (s *Service) SetOverridesBatch(ctx context.Context, sessionID string, req S
 		if o.FlagKey == "" {
 			continue
 		}
-		session.Overrides[o.FlagKey] = Override{
-			FlagKey:     o.FlagKey,
-			Value:       o.Value,
-			Environment: o.Environment,
-		}
+		session.Overrides[o.FlagKey] = Override(o)
 	}
 
 	if err := s.repo.UpdateOverrides(ctx, sessionID, session.Overrides); err != nil {

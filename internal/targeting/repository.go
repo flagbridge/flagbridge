@@ -53,7 +53,7 @@ func (r *Repository) SetRules(ctx context.Context, flagID, envID string, inputs 
 	if err != nil {
 		return nil, fmt.Errorf("beginning transaction: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	// Delete existing rules
 	if _, err := tx.Exec(ctx, `DELETE FROM targeting_rules WHERE flag_id = $1 AND environment_id = $2`, flagID, envID); err != nil {
@@ -81,7 +81,7 @@ func (r *Repository) SetRules(ctx context.Context, flagID, envID string, inputs 
 		if err != nil {
 			return nil, fmt.Errorf("inserting rule: %w", err)
 		}
-		json.Unmarshal(condBytes, &rule.Conditions)
+		_ = json.Unmarshal(condBytes, &rule.Conditions)
 		rules = append(rules, rule)
 	}
 
