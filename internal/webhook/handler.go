@@ -42,7 +42,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			"url":        wh.URL,
 			"secret":     wh.Secret,
 			"events":     wh.Events,
-			"active":     wh.Active,
+			"enabled":    wh.Active,
 			"created_at": wh.CreatedAt,
 		},
 	})
@@ -60,7 +60,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "webhookID")
+	id := chi.URLParam(r, "webhook_id")
 	wh, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "not_found", "webhook not found")
@@ -70,7 +70,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "webhookID")
+	id := chi.URLParam(r, "webhook_id")
 
 	var req UpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -87,7 +87,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "webhookID")
+	id := chi.URLParam(r, "webhook_id")
 	if err := h.svc.Delete(r.Context(), id); err != nil {
 		writeError(w, http.StatusNotFound, "not_found", err.Error())
 		return
@@ -96,7 +96,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeliveryLogs(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "webhookID")
+	id := chi.URLParam(r, "webhook_id")
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 
 	logs, err := h.svc.ListDeliveryLogs(r.Context(), id, limit)
@@ -108,7 +108,7 @@ func (h *Handler) DeliveryLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Test(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "webhookID")
+	id := chi.URLParam(r, "webhook_id")
 	if err := h.svc.TestWebhook(r.Context(), id); err != nil {
 		writeError(w, http.StatusNotFound, "not_found", err.Error())
 		return

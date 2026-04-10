@@ -28,7 +28,7 @@ type Webhook struct {
 	URL       string    `json:"url"`
 	Secret    string    `json:"-"`
 	Events    []string  `json:"events"`
-	Active    bool      `json:"active"`
+	Active    bool      `json:"enabled"`
 	CreatedBy string    `json:"created_by"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -55,5 +55,5 @@ type CreateRequest struct {
 type UpdateRequest struct {
 	URL    *string  `json:"url,omitempty"`
 	Events []string `json:"events,omitempty"`
-	Active *bool    `json:"active,omitempty"`
+	Active *bool    `json:"enabled,omitempty"`
 }

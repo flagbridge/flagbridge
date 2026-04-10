@@ -158,11 +158,11 @@ func main() {
 			// Webhooks
 			r.Post("/projects/{slug}/webhooks", webhookHandler.Create)
 			r.Get("/projects/{slug}/webhooks", webhookHandler.List)
-			r.Get("/webhooks/{webhookID}", webhookHandler.Get)
-			r.Patch("/webhooks/{webhookID}", webhookHandler.Update)
-			r.Delete("/webhooks/{webhookID}", webhookHandler.Delete)
-			r.Get("/webhooks/{webhookID}/logs", webhookHandler.DeliveryLogs)
-			r.Post("/webhooks/{webhookID}/test", webhookHandler.Test)
+			r.Get("/projects/{slug}/webhooks/{webhook_id}", webhookHandler.Get)
+			r.Patch("/projects/{slug}/webhooks/{webhook_id}", webhookHandler.Update)
+			r.Delete("/projects/{slug}/webhooks/{webhook_id}", webhookHandler.Delete)
+			r.Get("/projects/{slug}/webhooks/{webhook_id}/logs", webhookHandler.DeliveryLogs)
+			r.Post("/projects/{slug}/webhooks/{webhook_id}/test", webhookHandler.Test)
 
 			// Audit log
 			r.Get("/audit-log", auditHandler.List)
