@@ -15,18 +15,14 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Create(ctx context.Context, name, keyHash, keyPrefix, scope, projectID, environmentID, createdBy string) (*APIKey, error) {
+func (r *Repository) Create(ctx context.Context, name, keyHash, keyPrefix, scope, projectID string, environmentID *string, createdBy string) (*APIKey, error) {
 	var ak APIKey
-	var envID *string
-	if environmentID != "" {
-		envID = &environmentID
-	}
 
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO api_keys (name, key_hash, key_prefix, scope, project_id, environment_id, created_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, name, key_prefix, scope, project_id, environment_id, created_by, created_at
-	`, name, keyHash, keyPrefix, scope, projectID, envID, createdBy).Scan(
+	`, name, keyHash, keyPrefix, scope, projectID, environmentID, createdBy).Scan(
 		&ak.ID, &ak.Name, &ak.KeyPrefix, &ak.Scope, &ak.ProjectID, &ak.EnvironmentID, &ak.CreatedBy, &ak.CreatedAt,
 	)
 	if err != nil {

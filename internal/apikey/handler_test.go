@@ -71,6 +71,49 @@ func TestAPIKeyHandler_Create(t *testing.T) {
 		}
 	})
 
+	t.Run("creates full-scope API key without environment_id", func(t *testing.T) {
+		req := testutil.AuthedRequest(t, http.MethodPost, srv.URL+"/v1/api-keys", token, map[string]any{
+			"name":       "My Full Key",
+			"scope":      "full",
+			"project_id": projectID,
+		})
+
+		resp, err := srv.Client().Do(req)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("expected 201, got %d", resp.StatusCode)
+		}
+
+		var out struct {
+			Data struct {
+				ID        string  `json:"id"`
+				Name      string  `json:"name"`
+				Scope     string  `json:"scope"`
+				Key       string  `json:"key"`
+				ProjectID string  `json:"project_id"`
+				EnvID     *string `json:"environment_id"`
+			} `json:"data"`
+		}
+		testutil.DecodeBody(t, resp, &out)
+
+		if out.Data.ID == "" {
+			t.Error("expected non-empty id")
+		}
+		if out.Data.Scope != "full" {
+			t.Errorf("scope: got %q, want %q", out.Data.Scope, "full")
+		}
+		if out.Data.EnvID != nil {
+			t.Errorf("environment_id: got %v, want nil", out.Data.EnvID)
+		}
+		if out.Data.Key == "" {
+			t.Error("expected full key in creation response")
+		}
+	})
+
 	t.Run("creates test scope API key", func(t *testing.T) {
 		req := testutil.AuthedRequest(t, http.MethodPost, srv.URL+"/v1/api-keys", token, map[string]any{
 			"name":       "My Test Key",
@@ -201,6 +244,51 @@ func TestAPIKeyHandler_List(t *testing.T) {
 
 		if len(out.Data) != 0 {
 			t.Errorf("expected 0 keys, got %d", len(out.Data))
+		}
+	})
+
+	t.Run("lists keys including full-scope with NULL environment_id", func(t *testing.T) {
+		// Create an eval key (with implicit environment) and a full key (no environment).
+		for _, tc := range []struct {
+			name  string
+			scope string
+		}{
+			{"Eval Key", "eval"},
+			{"Full Key", "full"},
+		} {
+			createReq := testutil.AuthedRequest(t, http.MethodPost, srv.URL+"/v1/api-keys", token, map[string]any{
+				"name":       tc.name,
+				"scope":      tc.scope,
+				"project_id": projectID,
+			})
+			createResp, err := srv.Client().Do(createReq)
+			if err != nil {
+				t.Fatalf("create key request failed: %v", err)
+			}
+			createResp.Body.Close()
+			if createResp.StatusCode != http.StatusCreated {
+				t.Fatalf("create key returned %d for %q", createResp.StatusCode, tc.name)
+			}
+		}
+
+		req := testutil.AuthedRequest(t, http.MethodGet, srv.URL+"/v1/api-keys", token, nil)
+		resp, err := srv.Client().Do(req)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+
+		var out struct {
+			Data []map[string]any `json:"data"`
+		}
+		testutil.DecodeBody(t, resp, &out)
+
+		if len(out.Data) < 2 {
+			t.Errorf("expected at least 2 keys, got %d", len(out.Data))
 		}
 	})
 

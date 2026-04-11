@@ -18,7 +18,7 @@ const (
 type APIKeyInfo struct {
 	ID            string
 	ProjectID     string
-	EnvironmentID string
+	EnvironmentID *string
 	Scope         string
 }
 

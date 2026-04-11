@@ -8,7 +8,7 @@ type APIKey struct {
 	KeyPrefix     string     `json:"key_prefix"`
 	Scope         string     `json:"scope"`
 	ProjectID     string     `json:"project_id"`
-	EnvironmentID string     `json:"environment_id,omitempty"`
+	EnvironmentID *string    `json:"environment_id,omitempty"`
 	CreatedBy     string     `json:"created_by"`
 	LastUsedAt    *time.Time `json:"last_used_at,omitempty"`
 	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
@@ -16,10 +16,10 @@ type APIKey struct {
 }
 
 type CreateRequest struct {
-	Name          string `json:"name"`
-	Scope         string `json:"scope"`
-	ProjectID     string `json:"project_id"`
-	EnvironmentID string `json:"environment_id,omitempty"`
+	Name          string  `json:"name"`
+	Scope         string  `json:"scope"`
+	ProjectID     string  `json:"project_id"`
+	EnvironmentID *string `json:"environment_id,omitempty"`
 }
 
 type CreateResponse struct {
