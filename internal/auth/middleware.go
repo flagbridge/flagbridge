@@ -2,17 +2,21 @@ package auth
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type contextKey string
 
 const (
-	ClaimsContextKey  contextKey = "claims"
-	APIKeyContextKey  contextKey = "apikey"
+	ClaimsContextKey       contextKey = "claims"
+	APIKeyContextKey       contextKey = "apikey"
+	ProjectRoleContextKey  contextKey = "project_role"
 )
 
 type APIKeyInfo struct {
@@ -83,6 +87,63 @@ func APIKeyMiddleware(db *pgxpool.Pool, requiredScope string) func(http.Handler)
 	}
 }
 
+// RequireProjectRole checks that the authenticated user has one of the allowed roles
+// in the project identified by the {slug} URL parameter. Global admins (users.role="admin")
+// bypass role checks. The resolved project role is stored in context for downstream use.
+func RequireProjectRole(db *pgxpool.Pool, allowedRoles ...string) func(http.Handler) http.Handler {
+	allowed := make(map[string]bool, len(allowedRoles))
+	for _, r := range allowedRoles {
+		allowed[r] = true
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims := GetClaims(r.Context())
+			if claims == nil {
+				unauthorizedJSON(w, "authentication required")
+				return
+			}
+
+			// Global admins bypass project role checks
+			if claims.Role == "admin" {
+				ctx := context.WithValue(r.Context(), ProjectRoleContextKey, "admin")
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+
+			slug := chi.URLParam(r, "slug")
+			if slug == "" {
+				forbiddenJSON(w, "project context required")
+				return
+			}
+
+			var projectRole string
+			err := db.QueryRow(r.Context(), `
+				SELECT pm.role FROM project_members pm
+				JOIN projects p ON p.id = pm.project_id
+				WHERE p.slug = $1 AND pm.user_id = $2
+			`, slug, claims.UserID).Scan(&projectRole)
+			if err == pgx.ErrNoRows {
+				forbiddenJSON(w, "not a member of this project")
+				return
+			}
+			if err != nil {
+				slog.Error("failed to check project role", "error", err)
+				forbiddenJSON(w, "failed to verify permissions")
+				return
+			}
+
+			if !allowed[projectRole] {
+				forbiddenJSON(w, "insufficient role: requires "+strings.Join(allowedRoles, " or "))
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), ProjectRoleContextKey, projectRole)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
 func GetClaims(ctx context.Context) *Claims {
 	claims, _ := ctx.Value(ClaimsContextKey).(*Claims)
 	return claims
@@ -91,6 +152,11 @@ func GetClaims(ctx context.Context) *Claims {
 func GetAPIKeyInfo(ctx context.Context) *APIKeyInfo {
 	info, _ := ctx.Value(APIKeyContextKey).(*APIKeyInfo)
 	return info
+}
+
+func GetProjectRole(ctx context.Context) string {
+	role, _ := ctx.Value(ProjectRoleContextKey).(string)
+	return role
 }
 
 func extractBearerToken(r *http.Request) string {
@@ -105,4 +171,10 @@ func unauthorizedJSON(w http.ResponseWriter, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
 	_, _ = w.Write([]byte(`{"error":{"code":"unauthorized","message":"` + msg + `"}}`))
+}
+
+func forbiddenJSON(w http.ResponseWriter, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	_, _ = w.Write([]byte(`{"error":{"code":"forbidden","message":"` + msg + `"}}`))
 }

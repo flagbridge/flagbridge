@@ -22,7 +22,9 @@ import (
 	"github.com/flagbridge/flagbridge/internal/flag"
 	fbtesting "github.com/flagbridge/flagbridge/internal/testing"
 	"github.com/flagbridge/flagbridge/internal/webhook"
+	"github.com/flagbridge/flagbridge/internal/member"
 	"github.com/flagbridge/flagbridge/internal/middleware"
+	"github.com/flagbridge/flagbridge/internal/productcard"
 	"github.com/flagbridge/flagbridge/internal/project"
 	"github.com/flagbridge/flagbridge/internal/sse"
 	"github.com/flagbridge/flagbridge/internal/targeting"
@@ -75,6 +77,8 @@ func main() {
 	auditRepo := audit.NewRepository(db)
 	testingRepo := fbtesting.NewRepository(db)
 	webhookRepo := webhook.NewRepository(db)
+	productCardRepo := productcard.NewRepository(db)
+	memberRepo := member.NewRepository(db)
 
 	// Services
 	projectSvc := project.NewService(projectRepo)
@@ -86,6 +90,8 @@ func main() {
 	testingSvc := fbtesting.NewService(testingRepo)
 	webhookDispatcher := webhook.NewDispatcher(webhookRepo)
 	webhookSvc := webhook.NewService(webhookRepo, webhookDispatcher)
+	productCardSvc := productcard.NewService(productCardRepo)
+	memberSvc := member.NewService(memberRepo)
 
 	// Handlers
 	projectHandler := project.NewHandler(projectSvc)
@@ -96,7 +102,8 @@ func main() {
 	auditHandler := audit.NewHandler(auditSvc)
 	testingHandler := fbtesting.NewHandler(testingSvc)
 	webhookHandler := webhook.NewHandler(webhookSvc)
-
+	productCardHandler := productcard.NewHandler(productCardSvc, projectSvc, flagSvc, auditSvc)
+	memberHandler := member.NewHandler(memberSvc, projectSvc, auditSvc)
 
 	// Build targeting handler inline since it needs cross-package deps
 	targetingHandler := newTargetingHandler(targetingSvc, projectSvc, flagSvc, envSvc, auditSvc, memCache, hub)
@@ -150,7 +157,21 @@ func main() {
 			r.Put("/projects/{slug}/flags/{key}/rules/{env}", targetingHandler.SetRules)
 			r.Get("/projects/{slug}/flags/{key}/rules/{env}", targetingHandler.GetRules)
 
-			// API keys
+			// Product cards (all roles can read; product+ can write)
+			r.Get("/projects/{slug}/flags/{key}/product-card", productCardHandler.Get)
+			r.Put("/projects/{slug}/flags/{key}/product-card", productCardHandler.Upsert)
+			r.Delete("/projects/{slug}/flags/{key}/product-card", productCardHandler.Delete)
+
+			// Members (admin only for write, all authenticated for read)
+			r.Get("/projects/{slug}/members", memberHandler.List)
+			r.Group(func(r chi.Router) {
+				r.Use(auth.RequireProjectRole(db, "admin"))
+				r.Post("/projects/{slug}/members", memberHandler.Add)
+				r.Patch("/projects/{slug}/members/{memberID}", memberHandler.UpdateRole)
+				r.Delete("/projects/{slug}/members/{memberID}", memberHandler.Remove)
+			})
+
+			// API keys (engineer+ only)
 			r.Post("/api-keys", apikeyHandler.Create)
 			r.Get("/api-keys", apikeyHandler.List)
 			r.Delete("/api-keys/{id}", apikeyHandler.Delete)

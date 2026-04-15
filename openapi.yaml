@@ -3,7 +3,7 @@ info:
   title: FlagBridge API
   version: "1.0.0"
   description: |
-    Feature flags with product intelligence. Open-core platform.
+    Feature flags for the whole team — AI-powered. Open-core platform.
 
     **Editions:** Community (CE) and Pro. Pro endpoints require a valid license key
     and are gated by internal `pro.*` flags (ADR-001).
@@ -36,7 +36,9 @@ tags:
   - name: Marketplace
     description: Pro only
   - name: Product Cards
-    description: Pro only
+    description: CE — product context per flag (hypothesis, metrics, lifecycle)
+  - name: Members
+    description: CE — project membership and role management
   - name: Metrics
     description: Pro only
   - name: Lifecycle
