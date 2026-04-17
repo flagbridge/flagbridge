@@ -45,6 +45,10 @@ tags:
     description: Pro only
   - name: Integrations
     description: Pro only
+  - name: AI Config
+    description: CE — AI provider configuration (Anthropic, OpenAI, Ollama)
+  - name: AI
+    description: CE — AI chat and flag analysis (rate limited 100/mo)
   - name: Audit
   - name: Health
 
@@ -60,6 +64,46 @@ components:
       description: SDK API key (fb_sk_eval_* / fb_sk_mgmt_* / fb_sk_test_*)
 
   schemas:
+    AIProvider:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          enum: [anthropic, openai, ollama]
+        model_id:
+          type: string
+        has_api_key:
+          type: boolean
+          description: Whether an API key is configured (key itself is never returned)
+        base_url:
+          type: string
+          format: uri
+        max_tokens:
+          type: integer
+        temperature:
+          type: number
+        monthly_usage:
+          type: integer
+          description: Current month request count
+        monthly_limit:
+          type: integer
+          description: Monthly request limit (100 for CE)
+        last_reset_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
     Error:
       type: object
       required: [error]
@@ -1884,6 +1928,203 @@ paths:
       responses:
         "200":
           description: Status
+
+  # ============================================================
+  # AI CONFIG
+  # ============================================================
+  /v1/projects/{slug}/ai-config:
+    get:
+      tags: [AI Config]
+      operationId: getAIConfig
+      summary: Get AI provider configuration for a project
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      responses:
+        "200":
+          description: AI provider config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AIProvider'
+        "404":
+          description: Not configured
+    put:
+      tags: [AI Config]
+      operationId: upsertAIConfig
+      summary: Create or replace AI provider configuration
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider]
+              properties:
+                provider:
+                  type: string
+                  enum: [anthropic, openai, ollama]
+                model_id:
+                  type: string
+                api_key:
+                  type: string
+                  description: Provider API key (encrypted at rest, never returned)
+                base_url:
+                  type: string
+                  format: uri
+                  description: Custom base URL (required for Ollama, optional for others)
+                max_tokens:
+                  type: integer
+                  default: 4096
+                temperature:
+                  type: number
+                  default: 0.7
+      responses:
+        "200":
+          description: AI provider configured
+    patch:
+      tags: [AI Config]
+      operationId: updateAIConfig
+      summary: Partially update AI provider configuration
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  enum: [anthropic, openai, ollama]
+                model_id:
+                  type: string
+                api_key:
+                  type: string
+                base_url:
+                  type: string
+                  format: uri
+                max_tokens:
+                  type: integer
+                temperature:
+                  type: number
+      responses:
+        "200":
+          description: Updated
+    delete:
+      tags: [AI Config]
+      operationId: deleteAIConfig
+      summary: Remove AI provider configuration
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      responses:
+        "200":
+          description: Deleted
+
+  # ============================================================
+  # AI CHAT & ANALYSIS
+  # ============================================================
+  /v1/projects/{slug}/ai/chat:
+    post:
+      tags: [AI]
+      operationId: aiChat
+      summary: Chat with AI about the project (SSE streaming)
+      description: |
+        Sends a message to the configured AI provider with full project context
+        (flags, targeting rules, product cards, team, audit log).
+        Response is streamed via Server-Sent Events.
+        Rate limited to 100 requests/month on CE.
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  description: User message (natural language)
+      responses:
+        "200":
+          description: SSE stream of AI response chunks
+          content:
+            text/event-stream:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum: [content, done, error]
+                  content:
+                    type: string
+                  usage:
+                    type: object
+                    properties:
+                      input_tokens:
+                        type: integer
+                      output_tokens:
+                        type: integer
+        "429":
+          description: Monthly rate limit exceeded
+
+  /v1/projects/{slug}/ai/analyze-flag/{key}:
+    post:
+      tags: [AI]
+      operationId: aiAnalyzeFlag
+      summary: AI analysis of a specific flag
+      description: |
+        Generates a comprehensive AI analysis of a flag including configuration review,
+        rollout risk assessment, product card context, and improvement suggestions.
+        Non-streaming response.
+      security:
+        - BearerJWT: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectSlug'
+        - $ref: '#/components/parameters/FlagKey'
+      responses:
+        "200":
+          description: AI analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      response:
+                        type: string
+                      model:
+                        type: string
+                      provider:
+                        type: string
+                      usage:
+                        type: object
+                        properties:
+                          input_tokens:
+                            type: integer
+                          output_tokens:
+                            type: integer
+        "429":
+          description: Monthly rate limit exceeded
 
   # ============================================================
   # AUDIT LOG

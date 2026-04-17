@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/flagbridge/flagbridge/internal/ai"
+	"github.com/flagbridge/flagbridge/internal/aiconfig"
 	"github.com/flagbridge/flagbridge/internal/apikey"
 	"github.com/flagbridge/flagbridge/internal/audit"
 	"github.com/flagbridge/flagbridge/internal/auth"
@@ -79,6 +81,7 @@ func main() {
 	webhookRepo := webhook.NewRepository(db)
 	productCardRepo := productcard.NewRepository(db)
 	memberRepo := member.NewRepository(db)
+	aiConfigRepo := aiconfig.NewRepository(db)
 
 	// Services
 	projectSvc := project.NewService(projectRepo)
@@ -92,6 +95,8 @@ func main() {
 	webhookSvc := webhook.NewService(webhookRepo, webhookDispatcher)
 	productCardSvc := productcard.NewService(productCardRepo)
 	memberSvc := member.NewService(memberRepo)
+	aiConfigSvc := aiconfig.NewService(aiConfigRepo, cfg.EncryptionKey)
+	aiCtxBuilder := ai.NewContextBuilder(db)
 
 	// Handlers
 	projectHandler := project.NewHandler(projectSvc)
@@ -104,6 +109,8 @@ func main() {
 	webhookHandler := webhook.NewHandler(webhookSvc)
 	productCardHandler := productcard.NewHandler(productCardSvc, projectSvc, flagSvc, auditSvc)
 	memberHandler := member.NewHandler(memberSvc, projectSvc, auditSvc)
+	aiConfigHandler := aiconfig.NewHandler(aiConfigSvc, projectSvc, auditSvc)
+	aiHandler := ai.NewHandler(aiConfigSvc, projectSvc, auditSvc, aiCtxBuilder)
 
 	// Build targeting handler inline since it needs cross-package deps
 	targetingHandler := newTargetingHandler(targetingSvc, projectSvc, flagSvc, envSvc, auditSvc, memCache, hub)
@@ -187,6 +194,16 @@ func main() {
 
 			// Audit log
 			r.Get("/audit-log", auditHandler.List)
+
+			// AI config (admin only)
+			r.Get("/projects/{slug}/ai-config", aiConfigHandler.Get)
+			r.Put("/projects/{slug}/ai-config", aiConfigHandler.Upsert)
+			r.Patch("/projects/{slug}/ai-config", aiConfigHandler.Update)
+			r.Delete("/projects/{slug}/ai-config", aiConfigHandler.Delete)
+
+			// AI chat + analysis
+			r.Post("/projects/{slug}/ai/chat", aiHandler.Chat)
+			r.Post("/projects/{slug}/ai/analyze-flag/{key}", aiHandler.AnalyzeFlag)
 		})
 
 		// SDK routes (API key auth — eval scope)

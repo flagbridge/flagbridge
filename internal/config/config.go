@@ -12,6 +12,7 @@ type Config struct {
 	APIKeySalt     string
 	AllowedOrigins []string
 	SentryDSN      string
+	EncryptionKey  string
 }
 
 func Load() *Config {
@@ -22,6 +23,7 @@ func Load() *Config {
 		APIKeySalt:     envOr("API_KEY_SALT", ""),
 		AllowedOrigins: parseOrigins(envOr("ALLOWED_ORIGINS", "https://vozes.social,https://admin.flagbridge.io,http://localhost:3000")),
 		SentryDSN:      envOr("SENTRY_DSN", ""),
+		EncryptionKey:  envOr("ENCRYPTION_KEY", ""),
 	}
 }
 
